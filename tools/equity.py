@@ -63,3 +63,16 @@ if __name__ == "__main__":
     for name, r in zip(args.players, res):
         print(f"{name:16} equity {r['equity']:.2%}  (win {r['win']:.2%}, tie {r['tie']:.2%})")
     print(f"Exact: {deals:,} deals.")
+
+
+def outs_count(hero, villain, board):
+    """Cards on the next street that put hero strictly ahead, when hero is behind now."""
+    h, v, b = cards(hero), cards(villain), cards(board)
+    if eval7.evaluate(h + b) >= eval7.evaluate(v + b):
+        return 0
+    used = h + v + b
+    return sum(
+        1
+        for c in eval7.Deck().cards
+        if c not in used and eval7.evaluate(h + b + [c]) > eval7.evaluate(v + b + [c])
+    )

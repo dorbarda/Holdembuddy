@@ -2,7 +2,8 @@
 // Used by the Web Worker and as a fallback on the page itself.
 
 import { equity } from './equity.js';
-import { potOdds, stackInfo, outs } from './odds.js';
+import { potOdds, stackInfo, outs, drawChance } from './odds.js';
+import { makeDrill } from './drills.js';
 import { cardsToString } from './cards.js';
 import { parseRange, isExactHand } from './range.js';
 
@@ -27,6 +28,10 @@ export function run(fn, args = {}) {
         players: Number(args.players ?? 9),
         bbAnte: Boolean(args.bbAnte),
       });
+    case 'drill':
+      return makeDrill(String(args.topic), Number(args.seed ?? 1));
+    case 'drawChance':
+      return { chance: drawChance(Number(args.outs), Number(args.unseen), Number(args.cardsToCome ?? 1)) };
     case 'rangeSize':
       return { combos: isExactHand(args.range) ? 1 : parseRange(args.range).length };
     default:

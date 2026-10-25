@@ -3,6 +3,7 @@
 
 import { equity } from './equity.js';
 import { potOdds, stackInfo, outs } from './odds.js';
+import { makeDrill, TOPICS } from './drills.js';
 import { evaluate, categoryName } from './evaluator.js';
 import { parseCards, cardsToString } from './cards.js';
 
@@ -13,6 +14,8 @@ const HELP = `Holdembuddy odds engine
   potodds --pot <chips in middle incl. bet> --call <chips to call> [--json]
   stack --stack <chips> --sb <sb> --bb <bb> [--ante <ante>] [--players <n>] [--bbante] [--json]
   outs <hero> <villain> --board <3 or 4 cards> [--json]
+  drill <topic> [--seed N] [--json]
+      topic = ${Object.keys(TOPICS).join(' | ')}. Prints the question, options and (last) the answer.
   rank-batch     (reads one hand per line from stdin, prints scores; used by tests)
 `;
 
@@ -91,6 +94,16 @@ async function main() {
           (res.tieOuts.length ? `Split-pot cards: ${cardsToString(res.tieOuts)}\n` : '') +
           `Chance to hit on the next card: ${res.outs.length}/${res.unseen} = ${pct(res.nextCardChance)}`;
       out({ ...res, outs: cardsToString(res.outs), tieOuts: cardsToString(res.tieOuts) }, text);
+      break;
+    }
+    case 'drill': {
+      const seed = flags.seed ? Number(flags.seed) : Math.floor(Math.random() * 1e9);
+      const d = makeDrill(pos[0], seed);
+      const cards = d.cards
+        ? `You: ${d.cards.hero.join(' ')} | Villain: ${d.cards.villain.join(' ')} | Board: ${d.cards.board.join(' ')}\n`
+        : '';
+      const opts = d.options.map((o, i) => `  ${String.fromCharCode(65 + i)}) ${o.label}`).join('\n');
+      out(d, `[${d.topicName}] (seed ${seed})\n${cards}${d.question}\n${opts}\n\nAnswer: ${d.answer}\n${d.explain}`);
       break;
     }
     case 'rank-batch': {

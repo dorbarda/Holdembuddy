@@ -24,6 +24,7 @@ Goal: help them get better, step by step, using their own hands.
   - `node app/engine/cli.js potodds --pot 300 --call 100`
   - `node app/engine/cli.js outs AhKh QsQd --board Qh7h2c`
   - `node app/engine/cli.js stack --stack 4500 --sb 100 --bb 200 --ante 25 --players 9`
+  - `node app/engine/cli.js drill outs` (a quiz question with its exact answer)
 - If you can't calculate a number, write **"to validate"** next to it and ask the player if they want to check it.
 - Rules of thumb (like the "rule of 2 and 4") are shortcuts. Always say so.
 - Push/fold charts and ICM numbers are "to validate" until checked with the player.
@@ -42,14 +43,17 @@ Goal: help them get better, step by step, using their own hands.
 ## The app
 - Holdembuddy app (private): https://claude.ai/artifact/Xiuu1Ciw5kLCPeCKRiSN5G
 - Source: `app/index.html` + `app/engine/*.js` (published as `engine/*.js`). Republish with the Artifact tool, same file path.
-- Its database (hands, sessions, coach/prep, coach/profile) is described in `.claude/skills/sync/SKILL.md`.
+- Its database (hands, sessions, quiz, coach/prep, coach/profile) is described in `.claude/skills/sync/SKILL.md`.
+- Math School lessons: `app/learn/lessons.js` (mirrored in `knowledge/`). Drill questions: `app/engine/drills.js`.
 - Design rules: `design/design.md` (dark by default, 2-color deck, tabs Prep · Odds · Learn · Log · Coach).
 
 ## Commands (skills)
 - `/log-hand`: interview the player about a hand and save it.
 - `/review-hand`: review one hand street by street.
 - `/sync`: import hands and sessions from the app, and write prep back to it.
-- More are planned (see `README.md`).
+- `/review-session`: review a whole session and write new prep to the app.
+- `/drill`: quiz in the chat (`node app/engine/cli.js drill <topic>`).
+- `/progress`: progress report from counted data.
 
 ## Code
 - Odds engine: `app/engine/` (plain JavaScript, no build). Tests: `node --test app/engine/*.test.js`.

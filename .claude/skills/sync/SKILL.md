@@ -13,7 +13,8 @@ Use the **ArtifactData** tool with that `url`. (Load it with ToolSearch if neede
 |---|---|---|
 | `hands/<id>` | one logged hand (see fields below) | app |
 | `sessions/<id>` | one session result | app |
-| `coach/prep` | `{ updatedAt, focus: { title, detail }, leaks: [{ name, seen, status }] }` (status: open / improving / fixed) | Claude Code |
+| `coach/prep` | `{ updatedAt, focus: { title, detail }, leaks: [{ name, seen, status, topic }], checklist: [] }` (status: open / improving / fixed; topic: potOdds / stack / outs / equity / callFold; checklist: max 3 short lines) | Claude Code |
+| `quiz/<YYYY-MM-DD>` | one doc per day: `{ date, topics: { <topic>: { right, total } }, updatedAt }` | app |
 | `coach/profile` | short summary of the player for the in-app coach: `{ updatedAt, style, strengths: [], leaks: [] }` | Claude Code |
 
 Hand fields: `createdAt, date, game, format, position, stackBB, heroCards[], streets{preflop{action,amount}, flop{cards[],action,amount}, turn{...}, river{...}}, result, resultChips, villain, note, synced`.

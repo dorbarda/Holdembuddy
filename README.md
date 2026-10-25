@@ -3,7 +3,7 @@
 A personal Texas Hold'em coach: logs your hands, reviews them, teaches the math, and prepares you for the next session.
 
 ## Parts
-- **App**: https://claude.ai/artifact/Xiuu1Ciw5kLCPeCKRiSN5G (private). Prep, Odds Lab, Learn, Log, Ask Coach. Phone and computer.
+- **App**: https://claude.ai/artifact/Xiuu1Ciw5kLCPeCKRiSN5G (private). Prep, Odds Lab, Math School, Log, Ask Coach. Phone and computer.
 - **This repo**: the coach office. Hand records, reviews, your profile, and the code.
 
 ## Use it now
@@ -11,6 +11,9 @@ Open Claude Code in this repo and type:
 - `/log-hand`: tell a hand from your last game.
 - `/review-hand`: get a review of a logged hand.
 - `/sync`: bring hands you logged in the app into this repo.
+- `/review-session`: review a whole game; updates the app's Prep tab.
+- `/drill`: a quick math quiz in the chat.
+- `/progress`: see how you are improving.
 
 ## Odds engine
 ```
@@ -32,7 +35,7 @@ pip install -r tools/requirements.txt && pytest tools
 2. Odds engine + Python cross-check ✅
 3. Design: approved (`design/design.md`) ✅
 4. App v1: Odds Lab, Log, Ask Coach, `/sync` ✅
-5. App v2: Math School, Prep, `/review-session`, `/drill`, `/progress`
+5. App v2: Math School, Prep, `/review-session`, `/drill`, `/progress` ✅
 6. Online: PokerStars play money, hand history import, stats
 7. Optional: screen video → frames
 8. Later: bankroll tracker for real money

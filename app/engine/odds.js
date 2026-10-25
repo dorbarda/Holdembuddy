@@ -60,3 +60,14 @@ export function outs(hero, villain, board) {
     nextCardChance: win.length / unseen,
   };
 }
+
+/**
+ * Chance to hit at least one of `outsCount` cards when `cardsToCome` cards are dealt
+ * from `unseen` cards (exact, no shortcut). Example: 9 outs, 47 unseen, 2 cards = flop to river.
+ */
+export function drawChance(outsCount, unseen, cardsToCome = 1) {
+  if (!(unseen > 0) || outsCount < 0 || outsCount > unseen) throw new Error('Bad outs or unseen cards.');
+  let miss = 1;
+  for (let i = 0; i < cardsToCome; i++) miss *= (unseen - outsCount - i) / (unseen - i);
+  return 1 - miss;
+}

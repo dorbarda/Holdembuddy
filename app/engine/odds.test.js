@@ -32,3 +32,11 @@ test('outs: not behind = no outs', () => {
   assert.equal(r.behind, false);
   assert.equal(r.outs.length, 0);
 });
+
+test('drawChance: exact hit chance', async () => {
+  const { drawChance } = await import('./odds.js');
+  const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-12, `${a} vs ${b}`);
+  close(drawChance(9, 47, 1), 9 / 47);
+  close(drawChance(9, 47, 2), 1 - (38 / 47) * (37 / 46));
+  assert.equal(drawChance(0, 46, 1), 0);
+});

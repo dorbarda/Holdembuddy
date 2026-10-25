@@ -170,6 +170,8 @@ textarea.input { padding: 12px; min-height: 72px; resize: vertical; }
 
 <script type="module">
 import { run as runLocal } from './engine/api.js';
+import { TOPICS } from './engine/drills.js';
+import { LESSONS, DRILL_TOPICS } from './learn/lessons.js';
 
 // ---------- helpers ----------
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -185,7 +187,7 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem('hb.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem('hb.' + k, JSON.stringify(v)); } catch {} },
 };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => new Date().toLocaleDateString('en-CA'); // local YYYY-MM-DD
 
 function cardName(code) { return `${RANK_NAME[code[0]] ?? code[0]} of ${SUIT_NAME[code[1]]}`; }
 function cardHTML(code, { slot = '', sm = false, active = false, label = '' } = {}) {
@@ -198,6 +200,7 @@ function cardHTML(code, { slot = '', sm = false, active = false, label = '' } = 
   if (sm) return `<span class="${cls} suit-${code[1]}" role="img" aria-label="${cardName(code)}">${inner}</span>`;
   return `<button type="button" class="${cls} suit-${code[1]}" data-slot="${slot}" aria-label="${esc(label)}: ${cardName(code)}. Tap to change">${inner}</button>`;
 }
+const cardsMd = (list) => `<span class="cardrow">${list.filter(Boolean).map((c) => `<span class="card suit-${c[1]}" role="img" aria-label="${cardName(c)}" style="cursor:default"><span class="r">${c[0] === 'T' ? '10' : c[0]}</span><span class="s">${SUIT[c[1]]}</span></span>`).join('')}</span>`;
 const cardsSm = (list) => `<span class="cardrow" style="gap:4px">${list.filter(Boolean).map((c) => cardHTML(c, { sm: true })).join('')}</span>`;
 
 // ---------- settings ----------
@@ -236,7 +239,7 @@ function engine(fn, args) {
 let db = null;
 let sample = null;
 let toolsOk = false;
-const data = { hands: [], sessions: [], prep: null, profile: null, dbReady: false };
+const data = { hands: [], sessions: [], prep: null, profile: null, quiz: [], dbReady: false };
 
 // ---------- routing ----------
 const ROUTES = ['prep', 'odds', 'learn', 'log', 'coach'];
@@ -303,11 +306,32 @@ function escClose(e) { if (e.key === 'Escape' && picker) { closePicker(); docume
 // =====================================================================
 // PREP
 // =====================================================================
+function weekScores() {
+  // Quiz counts for the last 7 days (local dates), per topic.
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 6);
+  const from = cutoff.toLocaleDateString('en-CA');
+  const out = {};
+  for (const q of data.quiz) {
+    if (!q.date || q.date < from) continue;
+    for (const [t, v] of Object.entries(q.topics ?? {})) {
+      out[t] ??= { right: 0, total: 0 };
+      out[t].right += Number(v.right) || 0; out[t].total += Number(v.total) || 0;
+    }
+  }
+  return out;
+}
+function leakTopics() {
+  const t = (data.prep?.leaks ?? []).map((l) => l.topic).filter((x) => DRILL_TOPICS.includes(x));
+  return [...new Set(t)];
+}
 function renderPrep() {
   const v = $('#view-prep');
   const prep = data.prep;
   const unsynced = data.hands.filter((h) => !h.synced).length;
   const leaks = (prep?.leaks ?? []).slice(0, 3);
+  const checklist = (prep?.checklist ?? []).slice(0, 3);
+  const week = weekScores();
+  const topicsLeak = leakTopics();
   v.innerHTML = `
     <div class="view-head">
       <div><div class="eyebrow">Before you play</div><h1>Prep</h1></div>
@@ -327,22 +351,31 @@ function renderPrep() {
         <p class="muted">Your coach writes your focus here after reviewing your hands:</p>
         <ol class="muted" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
           <li>Log a few hands in <strong>Log</strong>.</li>
-          <li>In Claude Code, run <span class="num">/sync</span>, then <span class="num">/review-hand</span>.</li>
+          <li>In Claude Code, run <span class="num">/review-session</span> (or <span class="num">/sync</span> then <span class="num">/review-hand</span>).</li>
           <li>Come back here before your next game.</li>
         </ol>
       </div>`}
+    ${checklist.length ? `
+      <div class="panel"><h2>Before you sit down</h2>
+        <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px">${checklist.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}
     ${leaks.length ? `
       <div class="panel"><h2>Your top leaks</h2><div class="list">
-        ${leaks.map((l) => `<div><div><div class="t">${esc(l.name)}</div>${l.seen ? `<div class="d">Seen in ${esc(l.seen)} hands</div>` : ''}</div>
-          <span class="pill ${l.status === 'improving' ? 'good' : l.status === 'fixed' ? 'good' : 'open'}">${esc(l.status ?? 'open')}</span></div>`).join('')}
+        ${leaks.map((l) => `<div><div><div class="t">${esc(l.name)}</div><div class="d">${[l.seen ? `Seen in ${esc(l.seen)} hands` : '', l.topic && TOPICS[l.topic] ? `Drill: ${TOPICS[l.topic]}` : ''].filter(Boolean).join(' · ')}</div></div>
+          <span class="pill ${l.status === 'improving' || l.status === 'fixed' ? 'good' : 'open'}">${esc(l.status ?? 'open')}</span></div>`).join('')}
       </div></div>` : ''}
-    <button type="button" class="btn main" id="warmup">Start a warm-up quiz</button>
+    <button type="button" class="btn main" id="warmup">${topicsLeak.length ? 'Warm up on your leaks (5 questions)' : 'Start a 5-question warm-up'}</button>
+    <div class="panel">
+      <h2>Quizzes this week</h2>
+      ${Object.keys(week).length ? `<div class="list">${Object.entries(week).map(([t, s]) => `
+        <div><span class="t">${esc(TOPICS[t] ?? t)}</span><span class="num">${s.right} / ${s.total}${s.total ? ` · ${Math.round((s.right / s.total) * 100)}%` : ''}</span></div>`).join('')}</div>`
+        : `<p class="muted">${data.dbReady ? 'No quizzes yet this week.' : db ? 'Loading…' : 'Quiz scores are saved when saving is on.'}</p>`}
+    </div>
     <div class="grid2">
       <div class="stat"><span class="k">Hands logged</span><span class="v">${data.dbReady ? data.hands.length : '–'}</span></div>
       <div class="stat"><span class="k">Waiting for /sync</span><span class="v">${data.dbReady ? unsynced : '–'}</span></div>
     </div>
     ${!db ? `<p class="notice">Saving is off in this view, so prep and logged hands can't load here. Open the app on claude.ai while signed in.</p>` : ''}`;
-  $('#warmup').onclick = () => go('learn');
+  $('#warmup').onclick = () => { startDrill(topicsLeak.length ? topicsLeak : DRILL_TOPICS, 'Warm-up'); go('learn'); };
   $('#open-settings').onclick = toggleSettings;
 }
 function toggleSettings() {
@@ -547,62 +580,151 @@ async function calcOdds() {
 }
 
 // =====================================================================
-// LEARN (pot odds and stack drills; full Math School comes next)
+// LEARN (Math School: lessons + drills; every answer comes from the engine)
 // =====================================================================
-const learn = { q: null, picked: null, right: 0, total: 0 };
-function newQuestion() {
-  const kind = Math.random() < 0.6 ? 'pot' : 'stack';
-  if (kind === 'pot') {
-    const steps = [100, 150, 200, 250, 300, 400, 500, 600, 800, 1000];
-    const pot = steps[Math.floor(Math.random() * steps.length)];
-    const call = Math.max(25, Math.round((pot * (0.2 + Math.random() * 0.6)) / 25) * 25);
-    const need = runLocal('potOdds', { pot, call }).equityNeeded;
-    const wrong1 = call / pot;                       // forgot to add the call
-    const wrong2 = call / (pot + 2 * call);          // added the call twice
-    const opts = [...new Set([need, wrong1, wrong2].map((x) => pct(x)))];
-    while (opts.length < 3) opts.push(pct(need + 0.05 * opts.length));
-    learn.q = { topic: 'Pot odds', text: `The pot is ${pot} after the bet. You must call ${call}. How much equity do you need to call?`, opts: shuffle(opts), answer: pct(need), explain: `${call} ÷ (${pot} + ${call}) = ${pct(need)}. Call ÷ (pot + call).` };
-  } else {
-    const bbs = [100, 200, 300, 400, 600, 800, 1000];
-    const bb = bbs[Math.floor(Math.random() * bbs.length)];
-    const n = [6, 8, 10, 12, 15, 18, 20, 25, 30][Math.floor(Math.random() * 9)];
-    const stack = bb * n + (Math.random() < 0.5 ? bb / 2 : 0);
-    const r = runLocal('stack', { stack, sb: bb / 2, bb, ante: 0 });
-    const ans = `${r.bigBlinds.toFixed(1)} BB`;
-    const opts = [...new Set([ans, `${(stack / (bb / 2)).toFixed(1)} BB`, `${(r.bigBlinds + 3).toFixed(1)} BB`])];
-    learn.q = { topic: 'Stack size', text: `Blinds are ${bb / 2}/${bb}. You have ${fmtInt(stack)} chips. How many big blinds is that?`, opts: shuffle(opts), answer: ans, explain: `${fmtInt(stack)} ÷ ${bb} = ${r.bigBlinds.toFixed(1)} big blinds.` };
-  }
-  learn.picked = null;
+const learn = { screen: 'home', lessonId: null, examples: {}, topics: [], title: '', n: 0, right: 0, q: null, picked: null, loading: false, error: '' };
+const DRILL_LEN = 5;
+const drillCards = (q) => q.cards ? `
+  <div class="grid2">
+    <div class="field"><span class="who you">You</span>${cardsMd(q.cards.hero)}</div>
+    <div class="field"><span class="who vill">Villain</span>${cardsMd(q.cards.villain)}</div>
+  </div>
+  <div class="field"><span class="eyebrow">Board</span>${cardsMd(q.cards.board)}</div>` : '';
+
+function startDrill(topics, title) {
+  Object.assign(learn, { screen: 'drill', topics, title, n: 0, right: 0, q: null, picked: null, error: '' });
+  nextDrill();
 }
-function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+async function nextDrill() {
+  learn.loading = true; learn.q = null; learn.picked = null;
+  if (route === 'learn') renderLearn();
+  const topic = learn.topics[Math.floor(Math.random() * learn.topics.length)];
+  try {
+    learn.q = await engine('drill', { topic, seed: Math.floor(Math.random() * 2 ** 31) });
+  } catch (e) { learn.error = e.message; }
+  learn.loading = false;
+  if (route === 'learn') renderLearn();
+}
+let quizWrite = Promise.resolve();
+function recordQuiz(topic, correct) {
+  if (!db) return;
+  const day = today();
+  const cur = data.quiz.find((q) => q.id === day) ?? { id: day, date: day, topics: {} };
+  const topics = JSON.parse(JSON.stringify(cur.topics ?? {}));
+  topics[topic] ??= { right: 0, total: 0 };
+  topics[topic].total++; if (correct) topics[topic].right++;
+  const next = { date: day, topics, updatedAt: new Date().toISOString() };
+  data.quiz = [{ id: day, ...next }, ...data.quiz.filter((q) => q.id !== day)];
+  quizWrite = quizWrite.then(() => db.doc('quiz/' + day).set(next)).catch(() => {});
+}
+async function openLesson(id) {
+  Object.assign(learn, { screen: 'lesson', lessonId: id, examples: {} });
+  renderLearn();
+  const lesson = LESSONS.find((l) => l.id === id);
+  for (const [i, ex] of lesson.examples.entries()) {
+    let text;
+    try {
+      if (ex.type === 'potOdds') { const r = await engine('potOdds', ex); text = `Need <strong class="num">${pct(r.equityNeeded)}</strong> <span class="muted num">(${r.ratio.toFixed(2)} : 1)</span>`; }
+      else if (ex.type === 'stack') { const r = await engine('stack', ex); text = `<strong class="num">${r.bigBlinds.toFixed(1)} BB</strong> · M-ratio <strong class="num">${r.mRatio.toFixed(1)}</strong> <span class="muted">(one round costs ${fmtInt(r.orbitCost)})</span>`; }
+      else if (ex.type === 'draw') {
+        const r = await engine('drawChance', ex);
+        const shortcut = ex.outs * (ex.cardsToCome === 1 ? 2 : 4);
+        text = `Exact <strong class="num">${pct(r.chance)}</strong> <span class="muted">· shortcut ${ex.outs} × ${ex.cardsToCome === 1 ? 2 : 4} ≈ ${shortcut}%</span>`;
+      } else if (ex.type === 'equity') {
+        const r = await engine('equity', { players: ex.players, board: ex.board ?? '' });
+        text = `${cardsSm(ex.players[0].match(/../g))} <strong class="num">${pct(r.players[0].equity)}</strong> vs ${cardsSm(ex.players[1].match(/../g))} <strong class="num">${pct(r.players[1].equity)}</strong> ${engineBadge(r)}`;
+      }
+    } catch (e) { text = `<span class="error">${esc(e.message)}</span>`; }
+    if (learn.lessonId !== id) return;
+    learn.examples[i] = text;
+    if (route === 'learn' && learn.screen === 'lesson') renderLearn();
+  }
+}
 function renderLearn() {
-  if (!learn.q) newQuestion();
-  const q = learn.q;
   const v = $('#view-learn');
+  if (learn.screen === 'lesson') return renderLesson(v);
+  if (learn.screen === 'drill') return renderDrill(v);
+  const today_ = data.quiz.find((q) => q.id === today());
+  const todayCount = today_ ? Object.values(today_.topics ?? {}).reduce((s, t) => s + (t.total || 0), 0) : 0;
   v.innerHTML = `
-    <div class="view-head"><h1>Learn</h1><span class="num muted">${learn.right} / ${learn.total} right</span></div>
+    <div class="view-head"><h1>Math School</h1><span class="num muted">${todayCount ? `${todayCount} answered today` : ''}</span></div>
+    <button type="button" class="btn main" id="mixed">Quick drill: 5 mixed questions</button>
+    <div class="panel"><h2>Drill one topic</h2>
+      <div class="chips c3">${DRILL_TOPICS.map((t) => `<button type="button" class="chip" data-topic="${t}">${TOPICS[t]}</button>`).join('')}</div></div>
+    <div class="panel"><h2>Lessons</h2><div class="list">
+      ${LESSONS.map((l) => `<div><button type="button" class="btn ghost" data-lesson="${l.id}" style="border:0;padding:0;min-height:44px;justify-content:flex-start;text-align:left;flex:1">${esc(l.title)}</button>
+        ${l.idea ? '<span class="pill">Idea only</span>' : l.topic ? `<span class="pill">${TOPICS[l.topic]}</span>` : ''}</div>`).join('')}
+    </div></div>`;
+  $('#mixed').onclick = () => startDrill(DRILL_TOPICS, 'Mixed');
+  v.querySelectorAll('[data-topic]').forEach((b) => b.addEventListener('click', () => startDrill([b.dataset.topic], TOPICS[b.dataset.topic])));
+  v.querySelectorAll('[data-lesson]').forEach((b) => b.addEventListener('click', () => openLesson(b.dataset.lesson)));
+}
+function renderLesson(v) {
+  const l = LESSONS.find((x) => x.id === learn.lessonId);
+  v.innerHTML = `
+    <div class="view-head"><button type="button" class="btn small ghost" id="back">← Math School</button>${l.idea ? '<span class="pill">Idea only</span>' : ''}</div>
+    <h1>${esc(l.title)}</h1>
+    <div class="panel" style="gap:10px">${l.body.map((p) => `<p>${esc(p).replace(/\(to validate\)/gi, '<span class="badge validate">To validate</span>').replace(/"to validate"/gi, '<span class="badge validate">To validate</span>')}</p>`).join('')}</div>
+    ${l.examples.length ? `<div class="panel"><h2>Examples</h2><div class="list">${l.examples.map((ex, i) => `
+      <div style="flex-wrap:wrap"><span class="t" style="flex:1 1 220px">${esc(ex.label)}</span><span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${learn.examples[i] ?? '<span class="muted">Calculating…</span>'}</span></div>`).join('')}</div>
+      <span class="badge" style="align-self:flex-start">Calculated by the engine</span></div>` : ''}
+    ${l.topic ? `<button type="button" class="btn main" id="practice">Practice: ${DRILL_LEN} questions</button>` : ''}`;
+  $('#back').onclick = () => { learn.screen = 'home'; renderLearn(); };
+  const p = $('#practice'); if (p) p.onclick = () => startDrill([l.topic], l.title);
+}
+function renderDrill(v) {
+  const q = learn.q;
+  if (learn.n >= DRILL_LEN) {
+    v.innerHTML = `
+      <div class="view-head"><h1>${esc(learn.title)}</h1></div>
+      <div class="panel" style="align-items:flex-start">
+        <span class="eyebrow">Done</span>
+        <span class="big">${learn.right} / ${DRILL_LEN}</span>
+        <p class="muted">${learn.right === DRILL_LEN ? 'Perfect round.' : learn.right >= 3 ? 'Good. Do one more round to lock it in.' : 'Read the lesson again, then try another round.'}</p>
+      </div>
+      <button type="button" class="btn main" id="again">Another round</button>
+      <button type="button" class="btn" id="home">Back to Math School</button>`;
+    $('#again').onclick = () => startDrill(learn.topics, learn.title);
+    $('#home').onclick = () => { learn.screen = 'home'; renderLearn(); };
+    return;
+  }
+  const picked = learn.picked;
+  const chosen = q && picked ? q.options.find((o) => o.label === picked) : null;
+  v.innerHTML = `
+    <div class="view-head"><button type="button" class="btn small ghost" id="quit">← Stop</button><span class="num muted">Question ${learn.n + 1} of ${DRILL_LEN} · ${learn.right} right</span></div>
+    <div aria-hidden="true" style="display:grid;grid-template-columns:repeat(${DRILL_LEN},minmax(0,1fr));gap:6px">${Array.from({ length: DRILL_LEN }, (_, i) => `<div style="height:6px;border-radius:3px;background:${i < learn.n + (picked ? 1 : 0) ? 'var(--gold)' : 'var(--line)'}"></div>`).join('')}</div>
+    ${learn.loading || !q ? `<div class="panel"><p class="muted">${learn.error ? `<span class="error">${esc(learn.error)}</span>` : 'Dealing…'}</p></div>` : `
     <div class="panel" style="gap:16px">
-      <span class="pill" style="align-self:flex-start;color:var(--blue-text)">${q.topic}</span>
-      <p style="font-size:22px;font-weight:800;line-height:1.3">${esc(q.text)}</p>
-      <div class="chips">${q.opts.map((o) => {
-        let style = '';
-        if (learn.picked) {
-          if (o === q.answer) style = 'border:2px solid var(--good);';
-          else if (o === learn.picked) style = 'border:2px solid var(--bad);';
+      <span class="pill" style="align-self:flex-start;color:var(--blue-text)">${esc(q.topicName)}</span>
+      ${drillCards(q)}
+      <p style="font-size:20px;font-weight:800;line-height:1.35">${esc(q.question)}</p>
+      <div class="chips" role="group" aria-label="Answers">${q.options.map((o) => {
+        let style = 'font-size:18px;min-height:56px;';
+        if (picked) {
+          if (o.label === q.answer) style += 'border:2px solid var(--good);background:var(--surface);color:var(--text);';
+          else if (o.label === picked) style += 'border:2px solid var(--bad);background:var(--surface);color:var(--text);';
         }
-        return `<button type="button" class="chip num" data-opt="${esc(o)}" aria-pressed="${o === learn.picked}" style="font-size:20px;min-height:60px;${style}${o === learn.picked ? 'background:var(--surface);color:var(--text);' : ''}">${esc(o)}${learn.picked && o === q.answer ? ' ✓' : ''}</button>`;
+        return `<button type="button" class="chip ${/\d/.test(o.label) ? 'num' : ''}" data-opt="${esc(o.label)}" aria-pressed="${o.label === picked}" style="${style}" ${picked ? 'disabled' : ''}>${esc(o.label)}${picked && o.label === q.answer ? ' ✓' : ''}</button>`;
       }).join('')}</div>
-      ${learn.picked ? `
-        <div class="notice" style="border-style:solid;color:var(--text)"><strong>${learn.picked === q.answer ? 'Right!' : 'Not quite.'}</strong> <span class="num" style="color:var(--gold-text)">${esc(q.explain)}</span></div>
-        <button type="button" class="btn main" id="next-q">Next question</button>` : ''}
-    </div>
-    <p class="notice">More lessons (outs, equity, push/fold, bubble play) come in the next update. Answers here are calculated by the engine.</p>`;
+      ${picked ? `
+        <div class="notice" style="border-style:solid;color:var(--text);display:flex;flex-direction:column;gap:6px">
+          <strong>${picked === q.answer ? 'Right!' : 'Not quite.'}</strong>
+          ${picked !== q.answer && chosen?.why ? `<span>${esc(chosen.why)}</span>` : ''}
+          <span class="num" style="color:var(--gold-text)">${esc(q.explain)}</span>
+          <span class="badge" style="align-self:flex-start">Calculated by the engine</span>
+        </div>
+        <button type="button" class="btn main" id="next">${learn.n + 1 >= DRILL_LEN ? 'See result' : 'Next question'}</button>` : ''}
+    </div>`}`;
+  $('#quit').onclick = () => { learn.screen = 'home'; renderLearn(); };
   v.querySelectorAll('[data-opt]').forEach((b) => b.addEventListener('click', () => {
     if (learn.picked) return;
-    learn.picked = b.dataset.opt; learn.total++; if (learn.picked === q.answer) learn.right++;
+    learn.picked = b.dataset.opt;
+    const ok = learn.picked === q.answer;
+    if (ok) learn.right++;
+    recordQuiz(q.topic, ok);
     renderLearn();
   }));
-  const n = $('#next-q'); if (n) n.onclick = () => { newQuestion(); renderLearn(); };
+  const n = $('#next'); if (n) n.onclick = () => { learn.n++; if (learn.n >= DRILL_LEN) renderLearn(); else nextDrill(); };
 }
 
 // =====================================================================
@@ -798,7 +920,8 @@ How to answer:
 - Use **bold** only for the key number or the key advice. No headings, no tables.
 
 The player's profile (from their coach notes): ${profile}
-Current prep: ${prep}`;
+Current prep: ${prep}
+Quiz scores this week (right / total per topic): ${JSON.stringify(weekScores())}`;
 }
 const coachTools = (calls) => [
   {
@@ -923,6 +1046,7 @@ go(route);
     const toList = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     db.collection('hands').orderBy('createdAt', 'desc').limit(200).onSnapshot((snap) => { data.hands = toList(snap); data.dbReady = true; if (route === 'prep' || route === 'log') render(); }, () => { data.dbReady = true; });
     db.doc('coach/prep').onSnapshot((d) => { data.prep = d.exists ? d.data() : null; if (route === 'prep') render(); }, () => {});
+    db.collection('quiz').orderBy('date', 'desc').limit(60).onSnapshot((snap) => { data.quiz = toList(snap); if (route === 'prep') render(); }, () => {});
     db.doc('coach/profile').onSnapshot((d) => { data.profile = d.exists ? d.data() : null; }, () => {});
   }
   render();

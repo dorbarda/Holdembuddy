@@ -3,12 +3,13 @@
 import json
 import pathlib
 import random
+import re
 import subprocess
 
 import eval7
 import pytest
 
-from equity import exact_equity
+from equity import exact_equity, outs_count
 from odds import pot_odds, stack_info
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -82,3 +83,23 @@ def test_pot_odds_and_stack_match():
         assert j == pytest.approx(pot_odds(pot, call))
     j = js("stack", "--stack", "4500", "--sb", "100", "--bb", "200", "--ante", "25", "--players", "9", "--json")
     assert j == pytest.approx(stack_info(4500, 100, 200, 25, 9))
+
+
+@pytest.mark.parametrize("seed", range(1, 9))
+def test_drill_answers_match_eval7(seed):
+    o = js("drill", "outs", "--seed", str(seed), "--json")
+    c = o["cards"]
+    assert o["answer"] == str(outs_count("".join(c["hero"]), "".join(c["villain"]), "".join(c["board"])))
+
+    e = js("drill", "equity", "--seed", str(seed), "--json")
+    c = e["cards"]
+    eq = exact_equity(["".join(c["hero"]), "".join(c["villain"])], "".join(c["board"]))[0][0]["equity"]
+    bucket = "Under 25%" if eq < 0.25 else "25% to 50%" if eq < 0.5 else "50% to 75%" if eq < 0.75 else "Over 75%"
+    assert e["answer"] == bucket
+
+    f = js("drill", "callFold", "--seed", str(seed), "--json")
+    c = f["cards"]
+    eq = exact_equity(["".join(c["hero"]), "".join(c["villain"])], "".join(c["board"]))[0][0]["equity"]
+    before, bet = map(int, re.search(r"pot was ([\d,]+) and he bets ([\d,]+)", f["question"].replace(",", "")).groups())
+    need = bet / (before + bet + bet)
+    assert f["answer"] == ("Call" if eq >= need else "Fold")
