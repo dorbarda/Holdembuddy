@@ -29,7 +29,7 @@ pip install -r tools/requirements.txt && pytest tools
 ## Roadmap
 1. Foundation: rules, folders, templates, `/log-hand`, `/review-hand` ✅
 2. Odds engine + Python cross-check ✅
-3. Design: mockup for your approval
+3. Design: mockup ready for your review (`design/design.md`)
 4. App v1: Odds Lab, Log, Ask Coach, `/sync`
 5. App v2: Math School, Prep, `/review-session`, `/drill`, `/progress`
 6. Online: PokerStars play money, hand history import, stats
