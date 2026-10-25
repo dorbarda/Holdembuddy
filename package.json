@@ -1,0 +1,10 @@
+{
+  "name": "holdembuddy",
+  "private": true,
+  "type": "module",
+  "description": "Personal Texas Hold'em coach: odds engine and app",
+  "scripts": {
+    "test": "node --test app/engine/*.test.js",
+    "odds": "node app/engine/cli.js"
+  }
+}
