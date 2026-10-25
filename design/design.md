@@ -1,10 +1,10 @@
 # Holdembuddy design
 
-**Status: draft, waiting for approval.**
+**Status: approved (2026-10-25).**
 Mockup (clickable): https://claude.ai/artifact/A6f3PtNtj9PHe36rJD8tJ5
 
 ## Look and feel
-- Dark mode first (poker is often played at night, in low light). Light mode also supported.
+- **Dark mode by default** (approved). Light mode available in settings.
 - Calm and clear, like a quiet card room. No felt textures, no casino look.
 - One accent: **chip gold** = you / main action. **Blue** = villain.
 - Numbers are big and easy to read.
@@ -28,12 +28,12 @@ Mockup (clickable): https://claude.ai/artifact/A6f3PtNtj9PHe36rJD8tJ5
 
 ## Cards
 - White face `#F7F7F4`, rank on top, suit symbol below.
-- **4-color deck by default**: spades `#1B1F1D`, hearts `#D92D3A`, diamonds `#2563EB`, clubs `#15803D`.
-- Classic 2-color deck as a setting.
-- The suit symbol is always shown, so color is never the only clue.
+- **Classic 2-color deck by default** (approved): hearts and diamonds `#D92D3A`, spades and clubs `#1B1F1D`.
+- 4-color deck as a setting: diamonds `#2563EB`, clubs `#15803D`.
+- The suit symbol is always shown.
 
 ## Layout
-- **Phone** (390 px wide): tab bar at the bottom with 5 tabs: Prep · Odds · Learn · Log · Coach.
+- **Phone** (390 px wide): tab bar at the bottom with 5 tabs: Prep · Odds · Learn · Log · Coach (approved).
 - **Computer**: side menu on the left, content up to 1040 px wide, two columns (inputs | results).
 - All buttons at least 44 px tall. Main actions are 56 px tall and full width on phone.
 
@@ -66,7 +66,7 @@ Mockup (clickable): https://claude.ai/artifact/A6f3PtNtj9PHe36rJD8tJ5
 
 The leaks on the Prep screen are **example data**, not real stats.
 
-## Open questions for review
-- Dark by default, or follow the phone's setting?
-- 4-color deck by default: OK?
-- Tab names: Prep · Odds · Learn · Log · Coach. OK?
+## Decisions
+- Dark by default: yes.
+- Deck: two reds, two blacks by default; 4-color as an option.
+- Tab names: Prep · Odds · Learn · Log · Coach.
