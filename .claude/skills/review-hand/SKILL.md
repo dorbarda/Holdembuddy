@@ -51,3 +51,4 @@ Save to `reviews/YYYY-MM-DD-<hand-file-name>.md`:
 1. Show the player the short answer, the one lesson, and the file path. Keep the chat short.
 2. Update `profile/player.md`: add or update the leak row (with the hand file), strengths, "Last update" date.
 3. If a leak repeats 3+ times, suggest adding it to the current focus in `profile/study-plan.md`. Ask first.
+4. Update the app's Prep screen: write `coach/prep` and `coach/profile` as described in `.claude/skills/sync/SKILL.md`.

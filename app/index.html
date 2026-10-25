@@ -1,0 +1,930 @@
+<title>Holdembuddy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen app. Phone = bottom tab bar, computer (>= 900px) = side menu + content. Dark by default. */
+:root {
+  --ground: #0E1311; --surface: #161D1A; --surface2: #1F2824; --nav: #121815;
+  --line: #2C3832; --line-strong: #3A4842;
+  --text: #EEF2EF; --muted: #9AA8A1; --faint: #6F7D76;
+  --gold: #F2B544; --gold-ink: #1A1305; --gold-text: #F2B544;
+  --blue: #5B8FE6; --blue-text: #8DB8FF;
+  --good: #8FD4AE; --good-line: #3E7A5A; --bad: #F08A8A; --bad-line: #7A3E3E;
+  --bubble: #24302B;
+  --card: #F7F7F4; --card-edge: transparent;
+  --suit-black: #1B1F1D; --suit-red: #D92D3A; --suit-blue: #2563EB; --suit-green: #15803D;
+  --font-ui: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-num: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  color-scheme: dark;
+}
+:root.light {
+  --ground: #F6F5F0; --surface: #FFFFFF; --surface2: #EFEDE6; --nav: #FFFFFF;
+  --line: #DEDCD3; --line-strong: #C9C6BB;
+  --text: #141A17; --muted: #59655F; --faint: #7A857F;
+  --gold-text: #8A5A00; --blue: #3C6FD1; --blue-text: #2F5BB0;
+  --good: #1F6B43; --good-line: #9BCBB0; --bad: #B42318; --bad-line: #E7B4AE;
+  --bubble: #E9E6DC; --card: #FFFFFF; --card-edge: #C9C6BB;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--ground); color: var(--text); font-family: var(--font-ui); font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 16px; font-weight: 700; }
+p { margin: 0; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+
+.app { height: 100%; display: grid; grid-template-rows: 1fr auto; }
+main { overflow-y: auto; min-width: 0; }
+.view { max-width: 1040px; margin: 0 auto; padding-block: 24px 32px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 18px; }
+.view-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* Navigation */
+.nav { background: var(--nav); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.nav .brand { display: none; }
+.nav button { background: none; border: 0; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
+.nav button[aria-current="page"] { color: var(--gold-text); font-weight: 800; }
+.nav svg { width: 24px; height: 24px; }
+@media (min-width: 900px) {
+  .app { grid-template-rows: none; grid-template-columns: 220px 1fr; }
+  .nav { order: -1; grid-template-columns: none; display: flex; flex-direction: column; gap: 4px; border-top: 0; border-right: 1px solid var(--line); padding: 24px 12px; }
+  .nav .brand { display: block; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; padding: 0 12px 16px; }
+  .nav button { flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 12px; font-size: 15px; }
+  .nav button[aria-current="page"] { background: var(--surface2); }
+  .nav svg { width: 20px; height: 20px; }
+  .view { padding-block: 32px 40px; }
+}
+
+/* Building blocks */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.btn { min-height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+.btn:hover { border-color: var(--line-strong); }
+.btn.main { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); font-weight: 800; min-height: 56px; font-size: 17px; }
+.btn.small { min-height: 40px; padding: 0 12px; font-size: 14px; }
+.btn.ghost { background: transparent; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.chips { display: grid; gap: 8px; }
+.chips.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.chips.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.chips.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.chip { min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; font-size: 14px; cursor: pointer; padding: 0 6px; }
+.chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); font-weight: 800; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 3px; }
+.seg button { min-height: 38px; padding: 0 14px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 700; font-size: 13px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); font-weight: 800; }
+label.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 700; color: var(--muted); min-width: 0; }
+.input { min-height: 48px; border: 1px solid var(--line); border-radius: 12px; background: var(--ground); padding: 0 12px; font-size: 16px; width: 100%; min-width: 0; color: var(--text); }
+textarea.input { padding: 12px; min-height: 72px; resize: vertical; }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-num); font-size: 11px; font-weight: 600; color: var(--good); border: 1px solid var(--good-line); border-radius: 6px; padding: 3px 7px; }
+.badge.validate { font-family: var(--font-ui); font-weight: 800; color: var(--gold-ink); background: var(--gold); border-color: var(--gold); }
+.pill { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 10px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.open { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+.pill.good { color: var(--good); border-color: var(--good-line); }
+.notice { border: 1px dashed var(--line-strong); border-radius: 14px; padding: 12px 14px; color: var(--muted); font-size: 14px; }
+.error { color: var(--bad); font-size: 14px; font-weight: 600; }
+
+/* Playing cards */
+.card { width: 48px; height: 66px; border-radius: 8px; background: var(--card); box-shadow: inset 0 0 0 1px var(--card-edge); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--font-num); font-weight: 600; line-height: 1; border: 0; padding: 0; cursor: pointer; flex: none; }
+.card .r { font-size: 22px; } .card .s { font-size: 20px; }
+.card.sm { width: 34px; height: 46px; border-radius: 6px; cursor: default; } .card.sm .r { font-size: 15px; } .card.sm .s { font-size: 14px; }
+.card.empty { background: transparent; box-shadow: none; border: 1.5px dashed var(--line-strong); color: var(--faint); font-family: var(--font-ui); font-size: 22px; }
+.card.empty.active { border-color: var(--gold); color: var(--gold-text); }
+.card.active:not(.empty) { box-shadow: 0 0 0 3px var(--gold); }
+.suit-s, .suit-c { color: var(--suit-black); }
+.suit-h, .suit-d { color: var(--suit-red); }
+.deck4 .suit-d { color: var(--suit-blue); }
+.deck4 .suit-c { color: var(--suit-green); }
+.cardrow { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Odds Lab */
+.player.you { border-color: var(--gold); }
+.who { font-size: 12px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.who.you { color: var(--gold-text); } .who.vill { color: var(--blue-text); }
+.big { font-family: var(--font-num); font-size: 44px; font-weight: 600; letter-spacing: -0.02em; line-height: 1; }
+.mid { font-family: var(--font-num); font-size: 26px; font-weight: 600; line-height: 1; }
+.bar { height: 12px; border-radius: 999px; background: var(--blue); overflow: hidden; display: flex; }
+.bar > div { background: var(--gold); border-right: 2px solid var(--surface); transition: width 0.3s ease; }
+.stat { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat .k { font-size: 12px; color: var(--muted); font-weight: 600; }
+.stat .v { font-family: var(--font-num); font-size: 19px; font-weight: 600; }
+.presets { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Card picker */
+.sheet-back { position: fixed; inset: 0; background: rgb(0 0 0 / 0.55); display: flex; align-items: flex-end; justify-content: center; z-index: 20; }
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 22px 22px 0 0; width: 100%; max-width: 560px; padding: 18px; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 900px) { .sheet-back { align-items: center; } .sheet { border-radius: 22px; } }
+.pick-grid { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 4px; }
+.pick-grid button { aspect-ratio: 3 / 4; max-width: 100%; min-height: 44px; border-radius: 6px; border: 0; background: var(--card); box-shadow: inset 0 0 0 1px var(--card-edge); font-family: var(--font-num); font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; font-size: 14px; cursor: pointer; padding: 0; }
+.pick-grid button:disabled { opacity: 0.18; cursor: not-allowed; }
+
+/* Coach */
+.chat { display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 88%; padding: 12px 14px; border-radius: 18px; font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.msg.user { align-self: flex-end; background: var(--bubble); border-radius: 18px 18px 4px 18px; white-space: pre-wrap; }
+.msg.coach { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); border-radius: 18px 18px 18px 4px; display: flex; flex-direction: column; gap: 8px; }
+.msg.coach p + p { margin-top: 0; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.ask { position: sticky; bottom: 0; display: flex; gap: 8px; align-items: flex-end; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 6px 6px 6px 14px; }
+.ask textarea { flex: 1; min-width: 0; border: 0; background: transparent; resize: none; min-height: 44px; max-height: 140px; padding: 11px 0; font-size: 16px; outline: none; }
+.icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 0; background: var(--gold); color: var(--gold-ink); display: flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+.icon-btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+
+/* Lists */
+.list { display: flex; flex-direction: column; }
+.list > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.list > div:last-child { border-bottom: 0; }
+.list .t { font-weight: 600; }
+.list .d { font-size: 12px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { .bar > div { transition: none; } }
+</style>
+
+<div class="app" id="app">
+  <main id="main">
+    <section class="view" id="view-prep" hidden></section>
+    <section class="view" id="view-odds" hidden></section>
+    <section class="view" id="view-learn" hidden></section>
+    <section class="view" id="view-log" hidden></section>
+    <section class="view" id="view-coach" hidden></section>
+  </main>
+  <nav class="nav" aria-label="Main" id="nav">
+    <span class="brand">Holdembuddy</span>
+    <button type="button" data-route="prep"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg><span>Prep</span></button>
+    <button type="button" data-route="odds"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg><span>Odds</span></button>
+    <button type="button" data-route="learn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M7 10v5c0 1.5 2.2 3 5 3s5-1.5 5-3v-5"/></svg><span>Learn</span></button>
+    <button type="button" data-route="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Log</span></button>
+    <button type="button" data-route="coach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Coach</span></button>
+  </nav>
+</div>
+<div id="sheet-root"></div>
+
+<script type="module">
+import { run as runLocal } from './engine/api.js';
+
+// ---------- helpers ----------
+const $ = (sel, root = document) => root.querySelector(sel);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pct = (x) => (x * 100).toFixed(2) + '%';
+const fmtInt = (n) => Number(n).toLocaleString('en-US');
+const SUIT = { s: '♠︎', h: '♥︎', d: '♦︎', c: '♣︎' };
+const SUIT_NAME = { s: 'spades', h: 'hearts', d: 'diamonds', c: 'clubs' };
+const RANKS = 'AKQJT98765432';
+const RANK_NAME = { A: 'ace', K: 'king', Q: 'queen', J: 'jack', T: 'ten' };
+const POSITIONS = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('hb.' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('hb.' + k, JSON.stringify(v)); } catch {} },
+};
+const today = () => new Date().toISOString().slice(0, 10);
+
+function cardName(code) { return `${RANK_NAME[code[0]] ?? code[0]} of ${SUIT_NAME[code[1]]}`; }
+function cardHTML(code, { slot = '', sm = false, active = false, label = '' } = {}) {
+  const cls = `card${sm ? ' sm' : ''}${active ? ' active' : ''}`;
+  if (!code) {
+    if (sm) return '';
+    return `<button type="button" class="${cls} empty" data-slot="${slot}" aria-label="${esc(label || 'Pick a card')}">+</button>`;
+  }
+  const inner = `<span class="r">${code[0] === 'T' ? '10' : code[0]}</span><span class="s">${SUIT[code[1]]}</span>`;
+  if (sm) return `<span class="${cls} suit-${code[1]}" role="img" aria-label="${cardName(code)}">${inner}</span>`;
+  return `<button type="button" class="${cls} suit-${code[1]}" data-slot="${slot}" aria-label="${esc(label)}: ${cardName(code)}. Tap to change">${inner}</button>`;
+}
+const cardsSm = (list) => `<span class="cardrow" style="gap:4px">${list.filter(Boolean).map((c) => cardHTML(c, { sm: true })).join('')}</span>`;
+
+// ---------- settings ----------
+const settings = { theme: store.get('theme', 'dark'), deck: store.get('deck', '2') };
+function applySettings() {
+  document.documentElement.classList.toggle('light', settings.theme === 'light');
+  document.documentElement.classList.toggle('deck4', settings.deck === '4');
+}
+applySettings();
+
+// ---------- engine (worker with page fallback) ----------
+let worker = null;
+let nextId = 1;
+const waiting = new Map();
+try {
+  worker = new Worker(new URL('./engine/worker.js', import.meta.url), { type: 'module' });
+  worker.onmessage = (e) => {
+    const w = waiting.get(e.data.id);
+    if (!w) return;
+    waiting.delete(e.data.id);
+    e.data.error ? w.reject(new Error(e.data.error)) : w.resolve(e.data.result);
+  };
+  worker.onerror = () => { worker = null; for (const w of waiting.values()) w.retry(); waiting.clear(); };
+} catch { worker = null; }
+function engine(fn, args) {
+  const local = () => new Promise((resolve, reject) => setTimeout(() => { try { resolve(runLocal(fn, args)); } catch (err) { reject(err); } }, 0));
+  if (!worker) return local();
+  return new Promise((resolve, reject) => {
+    const id = nextId++;
+    waiting.set(id, { resolve, reject, retry: () => local().then(resolve, reject) });
+    worker.postMessage({ id, fn, args });
+  });
+}
+
+// ---------- capabilities ----------
+let db = null;
+let sample = null;
+let toolsOk = false;
+const data = { hands: [], sessions: [], prep: null, profile: null, dbReady: false };
+
+// ---------- routing ----------
+const ROUTES = ['prep', 'odds', 'learn', 'log', 'coach'];
+let route = ROUTES.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'prep';
+function go(r) {
+  route = r;
+  for (const name of ROUTES) $('#view-' + name).hidden = name !== r;
+  for (const b of document.querySelectorAll('#nav button')) {
+    if (b.dataset.route === r) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  }
+  render();
+  $('#main').scrollTop = 0;
+}
+$('#nav').addEventListener('click', (e) => { const b = e.target.closest('button[data-route]'); if (b) go(b.dataset.route); });
+
+function render() {
+  ({ prep: renderPrep, odds: renderOdds, learn: renderLearn, log: renderLog, coach: renderCoach })[route]();
+}
+
+// ---------- card picker ----------
+const slots = {}; // slot id -> card code
+let picker = null; // { group: [slot ids], slot, onDone }
+function usedCards(prefix, except) {
+  return new Set(Object.entries(slots).filter(([k, v]) => v && k.startsWith(prefix) && k !== except).map(([, v]) => v));
+}
+function openPicker(slot, group, onChange) {
+  picker = { slot, group, onChange };
+  drawPicker();
+}
+function closePicker() { picker = null; $('#sheet-root').innerHTML = ''; }
+function drawPicker() {
+  if (!picker) return;
+  const prefix = picker.slot.split('.')[0] + '.';
+  const used = usedCards(prefix, picker.slot);
+  const rows = ['s', 'h', 'd', 'c'].map((s) => RANKS.split('').map((r) => {
+    const code = r + s;
+    return `<button type="button" class="suit-${s}" data-pick="${code}" ${used.has(code) ? 'disabled' : ''} aria-label="${cardName(code)}"><span>${r === 'T' ? '10' : r}</span><span>${SUIT[s]}</span></button>`;
+  }).join('')).join('');
+  $('#sheet-root').innerHTML = `
+    <div class="sheet-back" id="sheet-back">
+      <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pick-title">
+        <div class="view-head"><h2 id="pick-title">Pick a card</h2>
+          <div class="row"><button type="button" class="btn small ghost" id="pick-clear">Remove</button><button type="button" class="btn small" id="pick-done">Done</button></div></div>
+        <div class="pick-grid">${rows}</div>
+      </div>
+    </div>`;
+  $('#sheet-back').addEventListener('click', (e) => {
+    if (e.target.id === 'sheet-back' || e.target.id === 'pick-done') return closePicker();
+    if (e.target.closest('#pick-clear')) { slots[picker.slot] = null; picker.onChange(); return closePicker(); }
+    const b = e.target.closest('button[data-pick]');
+    if (!b) return;
+    slots[picker.slot] = b.dataset.pick;
+    const idx = picker.group.indexOf(picker.slot);
+    const isBoard = picker.slot.includes('.b');
+    // Board: stop after the flop (3rd card), the turn and the river. Hands: go to the next empty slot.
+    const next = isBoard && idx >= 2 ? null : picker.group.slice(idx + 1).find((s) => !slots[s]);
+    picker.onChange();
+    if (next) { picker.slot = next; drawPicker(); } else closePicker();
+  });
+  document.addEventListener('keydown', escClose);
+}
+function escClose(e) { if (e.key === 'Escape' && picker) { closePicker(); document.removeEventListener('keydown', escClose); } }
+
+// =====================================================================
+// PREP
+// =====================================================================
+function renderPrep() {
+  const v = $('#view-prep');
+  const prep = data.prep;
+  const unsynced = data.hands.filter((h) => !h.synced).length;
+  const leaks = (prep?.leaks ?? []).slice(0, 3);
+  v.innerHTML = `
+    <div class="view-head">
+      <div><div class="eyebrow">Before you play</div><h1>Prep</h1></div>
+      <button type="button" class="btn small ghost" id="open-settings" aria-label="Settings">Settings</button>
+    </div>
+    <div id="settings-panel"></div>
+    ${prep?.focus ? `
+      <div class="panel">
+        <span class="eyebrow" style="color:var(--gold-text)">Today's focus</span>
+        <p style="font-size:20px;font-weight:700;line-height:1.3">${esc(prep.focus.title ?? prep.focus)}</p>
+        ${prep.focus.detail ? `<p class="muted">${esc(prep.focus.detail)}</p>` : ''}
+        ${prep.updatedAt ? `<span class="muted" style="font-size:12px">From your coach · ${esc(String(prep.updatedAt).slice(0, 10))}</span>` : ''}
+      </div>` : `
+      <div class="panel">
+        <span class="eyebrow" style="color:var(--gold-text)">Today's focus</span>
+        <p style="font-size:18px;font-weight:700">No prep yet</p>
+        <p class="muted">Your coach writes your focus here after reviewing your hands:</p>
+        <ol class="muted" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px">
+          <li>Log a few hands in <strong>Log</strong>.</li>
+          <li>In Claude Code, run <span class="num">/sync</span>, then <span class="num">/review-hand</span>.</li>
+          <li>Come back here before your next game.</li>
+        </ol>
+      </div>`}
+    ${leaks.length ? `
+      <div class="panel"><h2>Your top leaks</h2><div class="list">
+        ${leaks.map((l) => `<div><div><div class="t">${esc(l.name)}</div>${l.seen ? `<div class="d">Seen in ${esc(l.seen)} hands</div>` : ''}</div>
+          <span class="pill ${l.status === 'improving' ? 'good' : l.status === 'fixed' ? 'good' : 'open'}">${esc(l.status ?? 'open')}</span></div>`).join('')}
+      </div></div>` : ''}
+    <button type="button" class="btn main" id="warmup">Start a warm-up quiz</button>
+    <div class="grid2">
+      <div class="stat"><span class="k">Hands logged</span><span class="v">${data.dbReady ? data.hands.length : '–'}</span></div>
+      <div class="stat"><span class="k">Waiting for /sync</span><span class="v">${data.dbReady ? unsynced : '–'}</span></div>
+    </div>
+    ${!db ? `<p class="notice">Saving is off in this view, so prep and logged hands can't load here. Open the app on claude.ai while signed in.</p>` : ''}`;
+  $('#warmup').onclick = () => go('learn');
+  $('#open-settings').onclick = toggleSettings;
+}
+function toggleSettings() {
+  const p = $('#settings-panel');
+  if (p.innerHTML) { p.innerHTML = ''; return; }
+  p.innerHTML = `
+    <div class="panel">
+      <h2>Settings</h2>
+      <div class="row" style="justify-content:space-between"><span>Theme</span>
+        <div class="seg" role="group" aria-label="Theme"><button type="button" data-set="theme:dark" aria-pressed="${settings.theme === 'dark'}">Dark</button><button type="button" data-set="theme:light" aria-pressed="${settings.theme === 'light'}">Light</button></div></div>
+      <div class="row" style="justify-content:space-between"><span>Card colors</span>
+        <div class="seg" role="group" aria-label="Card colors"><button type="button" data-set="deck:2" aria-pressed="${settings.deck === '2'}">2 colors</button><button type="button" data-set="deck:4" aria-pressed="${settings.deck === '4'}">4 colors</button></div></div>
+      <div class="row">${['As', 'Kh', 'Qd', 'Jc'].map((c) => cardHTML(c, { sm: true })).join('')}</div>
+    </div>`;
+  p.onclick = (e) => {
+    const b = e.target.closest('[data-set]');
+    if (!b) return;
+    const [k, val] = b.dataset.set.split(':');
+    settings[k] = val; store.set(k, val); applySettings();
+    p.innerHTML = ''; toggleSettings();
+  };
+}
+
+// =====================================================================
+// ODDS LAB
+// =====================================================================
+const odds = { villMode: 'hand', range: '', pot: '', call: '', st: { stack: '', sb: '', bb: '', ante: '', players: '9', bbAnte: false }, result: null, outs: null, error: '', busy: false, rangeCombos: null };
+let oddsSeq = 0;
+const ODDS_PLAYERS = ['o.h0', 'o.h1', 'o.v0', 'o.v1'];
+const ODDS_BOARD = ['o.b0', 'o.b1', 'o.b2', 'o.b3', 'o.b4'];
+const RANGE_EXAMPLES = [
+  { name: 'Tight', range: 'TT+, AQs+, AKo' },
+  { name: 'Medium', range: '77+, ATs+, KQs, AJo+' },
+  { name: 'Wide', range: '22+, A2s+, K9s+, QTs+, JTs, A9o+, KTo+, QJo' },
+];
+const oddsCards = (list) => list.map((s) => slots[s]).filter(Boolean);
+
+function renderOdds() {
+  const v = $('#view-odds');
+  const r = odds.result;
+  const boardLen = oddsCards(ODDS_BOARD).length;
+  const villLabel = odds.villMode === 'hand' ? 'Villain' : 'Range';
+  v.innerHTML = `
+    <div class="view-head"><h1>Odds Lab</h1><button type="button" class="btn small ghost" id="odds-clear">Clear</button></div>
+    <div class="cols">
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div class="grid2">
+          <div class="panel player you"><span class="who you">You</span>
+            <div class="cardrow">${cardHTML(slots['o.h0'], { slot: 'o.h0', label: 'Your card 1' })}${cardHTML(slots['o.h1'], { slot: 'o.h1', label: 'Your card 2' })}</div></div>
+          <div class="panel player"><div class="row" style="justify-content:space-between"><span class="who vill">Villain</span></div>
+            <div class="seg" role="group" aria-label="Villain input"><button type="button" data-vmode="hand" aria-pressed="${odds.villMode === 'hand'}">Hand</button><button type="button" data-vmode="range" aria-pressed="${odds.villMode === 'range'}">Range</button></div>
+            ${odds.villMode === 'hand' ? `<div class="cardrow">${cardHTML(slots['o.v0'], { slot: 'o.v0', label: 'Villain card 1' })}${cardHTML(slots['o.v1'], { slot: 'o.v1', label: 'Villain card 2' })}</div>` : ''}
+          </div>
+        </div>
+        ${odds.villMode === 'range' ? `
+          <div class="panel">
+            <label class="field" for="range-input">Villain range
+              <input class="input num" id="range-input" value="${esc(odds.range)}" placeholder="e.g. TT+, AQs+, AKo" autocomplete="off" spellcheck="false"></label>
+            <div class="presets">${RANGE_EXAMPLES.map((x, i) => `<button type="button" class="btn small" data-preset="${i}">${x.name}</button>`).join('')}</div>
+            <span class="muted" style="font-size:13px">${odds.rangeCombos != null ? `${odds.rangeCombos} hand combos. ` : ''}Examples only: pick what <em>this</em> player really plays.</span>
+          </div>` : ''}
+        <div class="panel">
+          <div class="row" style="justify-content:space-between"><h2>Board</h2><span class="muted" style="font-size:13px">${['Preflop', '', '', 'Flop', 'Turn', 'River'][boardLen] || 'Add the flop: 3 cards'}</span></div>
+          <div class="cardrow">${ODDS_BOARD.map((s, i) => cardHTML(slots[s], { slot: s, label: `Board card ${i + 1}` })).join('')}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div class="panel" aria-live="polite">
+          ${r ? `
+            <div class="row" style="justify-content:space-between;align-items:flex-end">
+              <div><div class="who you">You</div><div class="big">${pct(r.players[0].equity)}</div></div>
+              <div style="text-align:right"><div class="who vill">${villLabel}</div><div class="mid">${pct(r.players[1].equity)}</div></div>
+            </div>
+            <div class="bar" aria-hidden="true"><div style="width:${(r.players[0].equity * 100).toFixed(2)}%"></div></div>
+            <div class="grid2" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+              <div class="stat"><span class="k">You win</span><span class="v">${pct(r.players[0].win)}</span></div>
+              <div class="stat"><span class="k">Split</span><span class="v">${pct(r.players[0].tie)}</span></div>
+              <div class="stat"><span class="k">${villLabel} wins</span><span class="v">${pct(r.players[1].win)}</span></div>
+            </div>
+            <div class="badges">${engineBadge(r)}</div>
+            ${odds.busy ? '<span class="muted">Updating…</span>' : ''}
+          ` : odds.busy ? '<p class="muted">Calculating…</p>' : `<p class="muted">${odds.error ? `<span class="error">${esc(odds.error)}</span>` : 'Pick your 2 cards and the villain’s hand or range. The odds show up here.'}</p>`}
+        </div>
+        ${odds.outs ? `
+          <div class="grid2">
+            <div class="stat"><span class="k">Outs on the next card</span><span class="v">${odds.outs.behind ? `${odds.outs.outs.length} · ${pct(odds.outs.nextCardChance)}` : 'You are ahead'}</span></div>
+            <div class="stat"><span class="k">Out cards</span><span class="v" style="font-size:14px">${odds.outs.behind ? (odds.outs.outs.length ? cardsSm(odds.outs.outs) : 'None') : '–'}</span></div>
+          </div>` : ''}
+        ${r ? `<button type="button" class="btn" id="odds-ask">Ask Coach about this spot</button>` : ''}
+        <div class="panel">
+          <h2>Pot odds</h2>
+          <div class="grid2">
+            <label class="field" for="po-pot">Pot now (with the bet)<input class="input num" id="po-pot" inputmode="decimal" value="${esc(odds.pot)}" placeholder="300"></label>
+            <label class="field" for="po-call">You must call<input class="input num" id="po-call" inputmode="decimal" value="${esc(odds.call)}" placeholder="100"></label>
+          </div>
+          <div id="po-out">${potOddsHTML()}</div>
+        </div>
+        <div class="panel">
+          <h2>Stack size</h2>
+          <div class="grid2">
+            <label class="field" for="st-stack">Your chips<input class="input num" id="st-stack" inputmode="decimal" value="${esc(odds.st.stack)}" placeholder="4500"></label>
+            <label class="field" for="st-players">Players at table<input class="input num" id="st-players" inputmode="numeric" value="${esc(odds.st.players)}"></label>
+            <label class="field" for="st-sb">Small blind<input class="input num" id="st-sb" inputmode="decimal" value="${esc(odds.st.sb)}" placeholder="100"></label>
+            <label class="field" for="st-bb">Big blind<input class="input num" id="st-bb" inputmode="decimal" value="${esc(odds.st.bb)}" placeholder="200"></label>
+            <label class="field" for="st-ante">Ante (0 if none)<input class="input num" id="st-ante" inputmode="decimal" value="${esc(odds.st.ante)}" placeholder="0"></label>
+            <label class="field" for="st-bbante" style="justify-content:flex-end"><span class="row" style="min-height:48px;gap:8px"><input type="checkbox" id="st-bbante" ${odds.st.bbAnte ? 'checked' : ''} style="width:20px;height:20px"> Big blind pays the ante</span></label>
+          </div>
+          <div id="st-out">${stackHTML()}</div>
+        </div>
+      </div>
+    </div>`;
+
+  v.querySelectorAll('[data-slot]').forEach((b) => b.addEventListener('click', () => {
+    const s = b.dataset.slot;
+    openPicker(s, s.includes('.b') ? ODDS_BOARD : odds.villMode === 'hand' ? ODDS_PLAYERS : ODDS_PLAYERS.slice(0, 2), () => { renderOdds(); calcOdds(); });
+  }));
+  v.querySelectorAll('[data-vmode]').forEach((b) => b.addEventListener('click', () => {
+    odds.villMode = b.dataset.vmode;
+    if (odds.villMode === 'range') slots['o.v0'] = slots['o.v1'] = null;
+    renderOdds(); calcOdds();
+  }));
+  v.querySelectorAll('[data-preset]').forEach((b) => b.addEventListener('click', () => { odds.range = RANGE_EXAMPLES[b.dataset.preset].range; renderOdds(); calcOdds(); }));
+  const ri = $('#range-input');
+  if (ri) {
+    let t;
+    ri.addEventListener('input', () => { odds.range = ri.value; clearTimeout(t); t = setTimeout(calcOdds, 500); });
+    ri.addEventListener('change', () => { odds.range = ri.value; renderOdds(); calcOdds(); });
+  }
+  $('#odds-clear').onclick = () => { for (const s of [...ODDS_PLAYERS, ...ODDS_BOARD]) slots[s] = null; odds.result = null; odds.outs = null; odds.error = ''; renderOdds(); };
+  const ask = $('#odds-ask');
+  if (ask) ask.onclick = () => { coach.draft = spotText(); go('coach'); };
+  const poUpdate = () => { odds.pot = $('#po-pot').value; odds.call = $('#po-call').value; $('#po-out').innerHTML = potOddsHTML(); };
+  $('#po-pot').addEventListener('input', poUpdate); $('#po-call').addEventListener('input', poUpdate);
+  const stUpdate = () => {
+    Object.assign(odds.st, { stack: $('#st-stack').value, sb: $('#st-sb').value, bb: $('#st-bb').value, ante: $('#st-ante').value, players: $('#st-players').value, bbAnte: $('#st-bbante').checked });
+    $('#st-out').innerHTML = stackHTML();
+  };
+  ['#st-stack', '#st-sb', '#st-bb', '#st-ante', '#st-players'].forEach((id) => $(id).addEventListener('input', stUpdate));
+  $('#st-bbante').addEventListener('change', stUpdate);
+}
+
+function engineBadge(r) {
+  if (r.mode === 'exact') return `<span class="badge">Engine · exact · ${fmtInt(r.boards)} deals</span>`;
+  return `<span class="badge">Engine · ${fmtInt(r.runs)} random deals · ± ${pct(r.margin)}</span>`;
+}
+function potOddsHTML() {
+  const pot = Number(odds.pot), call = Number(odds.call);
+  if (!(pot > 0 && call > 0)) return '<p class="muted" style="font-size:14px">Enter the pot and the call to see the equity you need.</p>';
+  const r = runLocal('potOdds', { pot, call });
+  const mine = odds.result ? odds.result.players[0].equity : null;
+  return `<div class="row" style="justify-content:space-between"><span class="mid">Need ${pct(r.equityNeeded)}</span><span class="num muted">${r.ratio.toFixed(2)} : 1</span></div>
+    <p class="muted" style="font-size:14px">${call} ÷ (${pot} + ${call}). ${mine != null ? (mine >= r.equityNeeded ? `You have ${pct(mine)} here, so a call is OK against this hand or range.` : `You have ${pct(mine)} here, so calling loses money against this hand or range.`) : ''}</p>`;
+}
+function stackHTML() {
+  const s = odds.st;
+  if (!(Number(s.stack) > 0 && Number(s.bb) > 0 && s.sb !== '')) return '<p class="muted" style="font-size:14px">Enter your chips and the blinds.</p>';
+  try {
+    const r = runLocal('stack', { stack: s.stack, sb: s.sb, bb: s.bb, ante: s.ante || 0, players: s.players || 9, bbAnte: s.bbAnte });
+    return `<div class="grid2"><div class="stat"><span class="k">Big blinds</span><span class="v">${r.bigBlinds.toFixed(1)} BB</span></div><div class="stat"><span class="k">M-ratio</span><span class="v">${r.mRatio.toFixed(1)}</span></div></div>
+      <p class="muted" style="font-size:14px">One round of blinds and antes costs ${fmtInt(r.orbitCost)} chips.</p>`;
+  } catch (e) { return `<p class="error">${esc(e.message)}</p>`; }
+}
+function spotText() {
+  const hero = oddsCards(['o.h0', 'o.h1']).join(' ');
+  const vill = odds.villMode === 'hand' ? oddsCards(['o.v0', 'o.v1']).join(' ') : `the range ${odds.range}`;
+  const board = oddsCards(ODDS_BOARD).join(' ');
+  return `I have ${hero} against ${vill}${board ? ` on a board of ${board}` : ' preflop'}. What should I think about here?`;
+}
+
+async function calcOdds() {
+  const seq = ++oddsSeq;
+  const hero = oddsCards(['o.h0', 'o.h1']);
+  const board = oddsCards(ODDS_BOARD);
+  let vill = null;
+  odds.error = '';
+  odds.rangeCombos = null;
+  if (odds.villMode === 'hand') { const v = oddsCards(['o.v0', 'o.v1']); if (v.length === 2) vill = v.join(''); }
+  else if (odds.range.trim()) {
+    try { odds.rangeCombos = runLocal('rangeSize', { range: odds.range }).combos; vill = odds.range; }
+    catch (e) { odds.error = e.message.replace(/^Bad range part/, 'I can’t read the range part'); }
+  }
+  if (hero.length < 2 || !vill || (board.length > 0 && board.length < 3)) {
+    odds.result = null; odds.outs = null;
+    if (board.length > 0 && board.length < 3 && !odds.error) odds.error = 'Add all 3 flop cards.';
+    if (route === 'odds') renderOdds();
+    return;
+  }
+  odds.busy = true;
+  if (route === 'odds') renderOdds();
+  try {
+    const res = await engine('equity', { players: [hero.join(''), vill], board: board.join('') });
+    let o = null;
+    if (odds.villMode === 'hand' && (board.length === 3 || board.length === 4)) o = await engine('outs', { hero: hero.join(''), villain: vill, board: board.join('') });
+    if (seq !== oddsSeq) return;
+    odds.result = res; odds.outs = o;
+  } catch (e) {
+    if (seq !== oddsSeq) return;
+    odds.result = null; odds.outs = null; odds.error = e.message;
+  }
+  odds.busy = false;
+  if (route === 'odds') renderOdds();
+}
+
+// =====================================================================
+// LEARN (pot odds and stack drills; full Math School comes next)
+// =====================================================================
+const learn = { q: null, picked: null, right: 0, total: 0 };
+function newQuestion() {
+  const kind = Math.random() < 0.6 ? 'pot' : 'stack';
+  if (kind === 'pot') {
+    const steps = [100, 150, 200, 250, 300, 400, 500, 600, 800, 1000];
+    const pot = steps[Math.floor(Math.random() * steps.length)];
+    const call = Math.max(25, Math.round((pot * (0.2 + Math.random() * 0.6)) / 25) * 25);
+    const need = runLocal('potOdds', { pot, call }).equityNeeded;
+    const wrong1 = call / pot;                       // forgot to add the call
+    const wrong2 = call / (pot + 2 * call);          // added the call twice
+    const opts = [...new Set([need, wrong1, wrong2].map((x) => pct(x)))];
+    while (opts.length < 3) opts.push(pct(need + 0.05 * opts.length));
+    learn.q = { topic: 'Pot odds', text: `The pot is ${pot} after the bet. You must call ${call}. How much equity do you need to call?`, opts: shuffle(opts), answer: pct(need), explain: `${call} ÷ (${pot} + ${call}) = ${pct(need)}. Call ÷ (pot + call).` };
+  } else {
+    const bbs = [100, 200, 300, 400, 600, 800, 1000];
+    const bb = bbs[Math.floor(Math.random() * bbs.length)];
+    const n = [6, 8, 10, 12, 15, 18, 20, 25, 30][Math.floor(Math.random() * 9)];
+    const stack = bb * n + (Math.random() < 0.5 ? bb / 2 : 0);
+    const r = runLocal('stack', { stack, sb: bb / 2, bb, ante: 0 });
+    const ans = `${r.bigBlinds.toFixed(1)} BB`;
+    const opts = [...new Set([ans, `${(stack / (bb / 2)).toFixed(1)} BB`, `${(r.bigBlinds + 3).toFixed(1)} BB`])];
+    learn.q = { topic: 'Stack size', text: `Blinds are ${bb / 2}/${bb}. You have ${fmtInt(stack)} chips. How many big blinds is that?`, opts: shuffle(opts), answer: ans, explain: `${fmtInt(stack)} ÷ ${bb} = ${r.bigBlinds.toFixed(1)} big blinds.` };
+  }
+  learn.picked = null;
+}
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function renderLearn() {
+  if (!learn.q) newQuestion();
+  const q = learn.q;
+  const v = $('#view-learn');
+  v.innerHTML = `
+    <div class="view-head"><h1>Learn</h1><span class="num muted">${learn.right} / ${learn.total} right</span></div>
+    <div class="panel" style="gap:16px">
+      <span class="pill" style="align-self:flex-start;color:var(--blue-text)">${q.topic}</span>
+      <p style="font-size:22px;font-weight:800;line-height:1.3">${esc(q.text)}</p>
+      <div class="chips">${q.opts.map((o) => {
+        let style = '';
+        if (learn.picked) {
+          if (o === q.answer) style = 'border:2px solid var(--good);';
+          else if (o === learn.picked) style = 'border:2px solid var(--bad);';
+        }
+        return `<button type="button" class="chip num" data-opt="${esc(o)}" aria-pressed="${o === learn.picked}" style="font-size:20px;min-height:60px;${style}${o === learn.picked ? 'background:var(--surface);color:var(--text);' : ''}">${esc(o)}${learn.picked && o === q.answer ? ' ✓' : ''}</button>`;
+      }).join('')}</div>
+      ${learn.picked ? `
+        <div class="notice" style="border-style:solid;color:var(--text)"><strong>${learn.picked === q.answer ? 'Right!' : 'Not quite.'}</strong> <span class="num" style="color:var(--gold-text)">${esc(q.explain)}</span></div>
+        <button type="button" class="btn main" id="next-q">Next question</button>` : ''}
+    </div>
+    <p class="notice">More lessons (outs, equity, push/fold, bubble play) come in the next update. Answers here are calculated by the engine.</p>`;
+  v.querySelectorAll('[data-opt]').forEach((b) => b.addEventListener('click', () => {
+    if (learn.picked) return;
+    learn.picked = b.dataset.opt; learn.total++; if (learn.picked === q.answer) learn.right++;
+    renderLearn();
+  }));
+  const n = $('#next-q'); if (n) n.onclick = () => { newQuestion(); renderLearn(); };
+}
+
+// =====================================================================
+// LOG
+// =====================================================================
+const blankHand = () => ({ game: store.get('lastGame', 'home'), format: store.get('lastFormat', 'tournament'), position: '', stackBB: '', streets: { preflop: { action: '', amount: '' } }, shown: 0, result: '', resultChips: '', note: '', villain: '' });
+const blankSession = () => ({ date: today(), game: store.get('lastGame', 'home'), format: store.get('lastFormat', 'tournament'), site: '', buyIn: '', players: '', finish: '', prize: '', note: '' });
+const log = { mode: 'hand', hand: blankHand(), session: blankSession(), msg: '', err: '' };
+const LOG_HERO = ['l.h0', 'l.h1'];
+const LOG_BOARD = ['l.b0', 'l.b1', 'l.b2', 'l.b3', 'l.b4'];
+const STREETS = ['flop', 'turn', 'river'];
+const PRE_ACTIONS = ['Fold', 'Limp', 'Call', 'Raise', '3-bet', 'All-in'];
+const POST_ACTIONS = ['Check', 'Bet', 'Call', 'Raise', 'Fold', 'All-in'];
+
+function chipGroup(name, list, cur, cols = 'c4') {
+  return `<div class="chips ${cols}" role="group" aria-label="${esc(name)}">${list.map((x) => `<button type="button" class="chip" data-chip="${esc(name)}" data-val="${esc(x)}" aria-pressed="${x === cur}">${esc(x)}</button>`).join('')}</div>`;
+}
+function renderLog() {
+  const v = $('#view-log');
+  const h = log.hand, s = log.session;
+  const streetBlock = (st, i) => {
+    const cardsIdx = st === 'flop' ? [0, 1, 2] : st === 'turn' ? [3] : [4];
+    const a = h.streets[st] ?? { action: '', amount: '' };
+    return `<div class="panel">
+      <div class="row" style="justify-content:space-between"><h2>${st[0].toUpperCase() + st.slice(1)}</h2>${i === h.shown - 1 ? `<button type="button" class="btn small ghost" id="drop-street">Remove</button>` : ''}</div>
+      <div class="cardrow">${cardsIdx.map((k) => cardHTML(slots[LOG_BOARD[k]], { slot: LOG_BOARD[k], label: `${st} card` })).join('')}</div>
+      ${chipGroup(st, POST_ACTIONS, a.action, 'c3')}
+      ${['Bet', 'Raise', 'Call', 'All-in'].includes(a.action) ? `<label class="field" for="amt-${st}">Amount (chips or BB)<input class="input num" id="amt-${st}" data-amt="${st}" value="${esc(a.amount)}" inputmode="decimal"></label>` : ''}
+    </div>`;
+  };
+  v.innerHTML = `
+    <div class="view-head"><h1>Log</h1>
+      <div class="seg" role="group" aria-label="What to log"><button type="button" data-lmode="hand" aria-pressed="${log.mode === 'hand'}">Hand</button><button type="button" data-lmode="session" aria-pressed="${log.mode === 'session'}">Session</button></div></div>
+    ${!db ? `<p class="notice">Saving is off in this view. Open the app on claude.ai while signed in to save hands.</p>` : ''}
+    <div class="cols">
+    ${log.mode === 'hand' ? `
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div class="panel">
+          <div class="grid2">
+            <div class="field">Game${chipGroup('game', ['home', 'online'], h.game, 'c2')}</div>
+            <label class="field" for="h-format">Format<select class="input" id="h-format">${['tournament', 'sng', 'cash'].map((f) => `<option value="${f}" ${h.format === f ? 'selected' : ''}>${{ tournament: 'Tournament', sng: 'Sit & Go', cash: 'Cash' }[f]}</option>`).join('')}</select></label>
+          </div>
+          <div class="field">Your position${chipGroup('position', POSITIONS, h.position)}</div>
+          <div class="grid2">
+            <label class="field" for="h-stack">Your stack (BB)<input class="input num" id="h-stack" inputmode="decimal" value="${esc(h.stackBB)}" placeholder="22.5"></label>
+            <div class="field">Your cards<div class="cardrow">${LOG_HERO.map((k, i) => cardHTML(slots[k], { slot: k, label: `Your card ${i + 1}` })).join('')}</div></div>
+          </div>
+        </div>
+        <div class="panel"><h2>Preflop</h2>${chipGroup('preflop', PRE_ACTIONS, h.streets.preflop.action, 'c3')}
+          ${['Raise', '3-bet', 'Call', 'All-in'].includes(h.streets.preflop.action) ? `<label class="field" for="amt-preflop">Amount (chips or BB)<input class="input num" id="amt-preflop" data-amt="preflop" value="${esc(h.streets.preflop.amount)}" inputmode="decimal"></label>` : ''}
+        </div>
+        ${STREETS.slice(0, h.shown).map(streetBlock).join('')}
+        ${h.shown < 3 ? `<button type="button" class="btn" id="add-street" style="border-style:dashed">+ Add ${STREETS[h.shown]}</button>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div class="panel">
+          <div class="field">Result${chipGroup('result', ['Won', 'Lost', 'Split', 'Folded'], h.result)}</div>
+          <label class="field" for="h-chips">Chips won or lost (optional, use - for lost)<input class="input num" id="h-chips" inputmode="decimal" value="${esc(h.resultChips)}" placeholder="+1200"></label>
+          <label class="field" for="h-villain">Villain (optional: position, stack, cards shown)<input class="input" id="h-villain" value="${esc(h.villain)}" placeholder="CO, 30 BB, showed QQ"></label>
+          <label class="field" for="h-note">What were you thinking? (optional)<textarea class="input" id="h-note" placeholder="I wasn't sure if I should shove…">${esc(h.note)}</textarea></label>
+          ${log.err ? `<p class="error">${esc(log.err)}</p>` : ''}${log.msg ? `<p style="color:var(--good);font-weight:700">${esc(log.msg)}</p>` : ''}
+          <button type="button" class="btn main" id="save-hand" ${db ? '' : 'disabled'}>Save hand</button>
+        </div>
+        ${recentHandsHTML()}
+      </div>` : `
+      <div class="panel">
+        <div class="grid2">
+          <label class="field" for="s-date">Date<input class="input" type="date" id="s-date" value="${esc(s.date)}"></label>
+          <label class="field" for="s-format">Format<select class="input" id="s-format">${['tournament', 'sng', 'cash'].map((f) => `<option value="${f}" ${s.format === f ? 'selected' : ''}>${{ tournament: 'Tournament', sng: 'Sit & Go', cash: 'Cash' }[f]}</option>`).join('')}</select></label>
+        </div>
+        <div class="field">Game${chipGroup('sgame', ['home', 'online'], s.game, 'c2')}</div>
+        ${s.game === 'online' ? `<label class="field" for="s-site">Site<input class="input" id="s-site" value="${esc(s.site)}" placeholder="PokerStars play money"></label>` : ''}
+        <div class="grid2">
+          <label class="field" for="s-buyin">Buy-in (0 if free)<input class="input num" id="s-buyin" inputmode="decimal" value="${esc(s.buyIn)}"></label>
+          <label class="field" for="s-players">Players<input class="input num" id="s-players" inputmode="numeric" value="${esc(s.players)}"></label>
+          <label class="field" for="s-finish">Your finish (place)<input class="input num" id="s-finish" inputmode="numeric" value="${esc(s.finish)}"></label>
+          <label class="field" for="s-prize">Prize<input class="input num" id="s-prize" inputmode="decimal" value="${esc(s.prize)}"></label>
+        </div>
+        <label class="field" for="s-note">How did it go? (optional)<textarea class="input" id="s-note">${esc(s.note)}</textarea></label>
+        ${log.err ? `<p class="error">${esc(log.err)}</p>` : ''}${log.msg ? `<p style="color:var(--good);font-weight:700">${esc(log.msg)}</p>` : ''}
+        <button type="button" class="btn main" id="save-session" ${db ? '' : 'disabled'}>Save session</button>
+      </div>`}
+    </div>`;
+
+  v.querySelectorAll('[data-lmode]').forEach((b) => b.addEventListener('click', () => { log.mode = b.dataset.lmode; log.msg = log.err = ''; renderLog(); }));
+  v.querySelectorAll('[data-slot]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.slot;
+    openPicker(k, k.includes('.b') ? LOG_BOARD : LOG_HERO, renderLog);
+  }));
+  v.querySelectorAll('[data-chip]').forEach((b) => b.addEventListener('click', () => {
+    const name = b.dataset.chip, val = b.dataset.val;
+    if (name === 'game') { h.game = val; store.set('lastGame', val); }
+    else if (name === 'sgame') { s.game = val; store.set('lastGame', val); }
+    else if (name === 'position') h.position = val;
+    else if (name === 'result') h.result = val;
+    else if (name === 'preflop' || STREETS.includes(name)) { h.streets[name] = { ...(h.streets[name] ?? {}), action: val }; }
+    log.msg = '';
+    readLogInputs(); renderLog();
+  }));
+  v.querySelectorAll('input, textarea, select').forEach((el) => el.addEventListener('change', readLogInputs));
+  const add = $('#add-street'); if (add) add.onclick = () => { readLogInputs(); h.shown++; h.streets[STREETS[h.shown - 1]] = { action: '', amount: '' }; renderLog(); };
+  const drop = $('#drop-street'); if (drop) drop.onclick = () => {
+    readLogInputs();
+    const st = STREETS[h.shown - 1];
+    delete h.streets[st];
+    (st === 'flop' ? [0, 1, 2] : st === 'turn' ? [3] : [4]).forEach((k) => (slots[LOG_BOARD[k]] = null));
+    h.shown--; renderLog();
+  };
+  const sh = $('#save-hand'); if (sh) sh.onclick = saveHand;
+  const ss = $('#save-session'); if (ss) ss.onclick = saveSession;
+}
+function readLogInputs() {
+  const h = log.hand, s = log.session, val = (id) => $(id)?.value;
+  if (log.mode === 'hand') {
+    if ($('#h-format')) { h.format = val('#h-format'); store.set('lastFormat', h.format); }
+    if ($('#h-stack')) h.stackBB = val('#h-stack');
+    if ($('#h-chips')) h.resultChips = val('#h-chips');
+    if ($('#h-villain')) h.villain = val('#h-villain');
+    if ($('#h-note')) h.note = val('#h-note');
+    document.querySelectorAll('[data-amt]').forEach((el) => { const st = el.dataset.amt; if (h.streets[st]) h.streets[st].amount = el.value; });
+  } else {
+    for (const [k, id] of [['date', '#s-date'], ['format', '#s-format'], ['site', '#s-site'], ['buyIn', '#s-buyin'], ['players', '#s-players'], ['finish', '#s-finish'], ['prize', '#s-prize'], ['note', '#s-note']]) if ($(id)) s[k] = val(id);
+  }
+}
+const numOrNull = (x) => (x === '' || x == null || isNaN(Number(x)) ? null : Number(x));
+async function saveHand() {
+  readLogInputs();
+  const h = log.hand;
+  const cards = LOG_HERO.map((k) => slots[k]).filter(Boolean);
+  log.err = log.msg = '';
+  if (!h.position) log.err = 'Pick your position.';
+  else if (cards.length < 2) log.err = 'Pick your 2 cards.';
+  else if (!h.streets.preflop.action) log.err = 'Pick what you did preflop.';
+  if (log.err) return renderLog();
+  const streets = { preflop: { action: h.streets.preflop.action, amount: h.streets.preflop.amount || null } };
+  STREETS.slice(0, h.shown).forEach((st) => {
+    const idx = st === 'flop' ? [0, 1, 2] : st === 'turn' ? [3] : [4];
+    streets[st] = { cards: idx.map((k) => slots[LOG_BOARD[k]]).filter(Boolean), action: h.streets[st]?.action || null, amount: h.streets[st]?.amount || null };
+  });
+  const doc = {
+    createdAt: new Date().toISOString(), date: today(), game: h.game, format: h.format,
+    position: h.position, stackBB: numOrNull(h.stackBB), heroCards: cards, streets,
+    result: h.result || null, resultChips: numOrNull(h.resultChips), villain: h.villain || null, note: h.note || null, synced: false,
+  };
+  $('#save-hand').disabled = true;
+  try {
+    await db.collection('hands').add(doc);
+    log.hand = blankHand();
+    [...LOG_HERO, ...LOG_BOARD].forEach((k) => (slots[k] = null));
+    log.msg = 'Saved. Run /sync in Claude Code to review it.';
+  } catch (e) {
+    log.err = e?.code === 'quota_exceeded' ? 'Storage is full. Run /sync, then delete old hands.' : 'Could not save. Check your connection and try again.';
+  }
+  renderLog();
+}
+async function saveSession() {
+  readLogInputs();
+  const s = log.session;
+  log.err = log.msg = '';
+  if (!s.date) { log.err = 'Pick the date.'; return renderLog(); }
+  const doc = { createdAt: new Date().toISOString(), date: s.date, game: s.game, format: s.format, site: s.site || null, buyIn: numOrNull(s.buyIn), players: numOrNull(s.players), finish: numOrNull(s.finish), prize: numOrNull(s.prize), note: s.note || null, synced: false };
+  try { await db.collection('sessions').add(doc); log.session = blankSession(); log.msg = 'Session saved.'; }
+  catch { log.err = 'Could not save. Check your connection and try again.'; }
+  renderLog();
+}
+function recentHandsHTML() {
+  if (!db) return '';
+  if (!data.dbReady) return '<div class="panel"><h2>Recent hands</h2><p class="muted">Loading…</p></div>';
+  if (!data.hands.length) return '<div class="panel"><h2>Recent hands</h2><p class="muted">No hands yet. Your saved hands show up here.</p></div>';
+  return `<div class="panel"><h2>Recent hands</h2><div class="list">${data.hands.slice(0, 8).map((x) => `
+    <div><div style="display:flex;gap:10px;align-items:center;min-width:0">${cardsSm(x.heroCards ?? [])}<div style="min-width:0"><div class="t">${esc(x.position ?? '')} · ${esc(x.result ?? '–')}${x.resultChips != null ? ` <span class="num">${x.resultChips > 0 ? '+' : ''}${esc(x.resultChips)}</span>` : ''}</div><div class="d">${esc(x.date ?? '')}${x.stackBB != null ? ` · ${esc(x.stackBB)} BB` : ''}</div></div></div>
+    <span class="pill ${x.synced ? 'good' : ''}">${x.synced ? 'Synced' : 'Not synced'}</span></div>`).join('')}</div></div>`;
+}
+
+// =====================================================================
+// COACH
+// =====================================================================
+const coach = { turns: store.get('chat', []), draft: '', busy: false, ctl: null, error: '' };
+const SUGGESTIONS = ['AK vs QQ before the flop: who is ahead?', 'I have 12 big blinds on the button with A7 offsuit. Push or fold?', 'What are pot odds, in simple words?'];
+
+function coachRules() {
+  const profile = data.profile ? JSON.stringify(data.profile).slice(0, 3000) : 'none yet';
+  const prep = data.prep ? JSON.stringify(data.prep).slice(0, 2000) : 'none yet';
+  return `You are Holdembuddy, a friendly Texas Hold'em coach for one hobby player. They play home games with friends and free online games, mostly tournaments and Sit & Go. English is not their first language.
+
+How to answer:
+- Short and simple: plain English, short sentences, at most about 150 words unless they ask for more. Explain poker words the first time.
+- One main idea per answer. Be honest about mistakes and say what was good.
+- NEVER guess a number. ${toolsOk ? 'Every equity, odds, outs, pot odds or stack number must come from your tools (equity, outs, pot_odds, stack). Call the tool, then use its result.' : 'You cannot calculate right now, so mark every number with "(to validate)".'} If a number can't come from a tool (ICM, push/fold charts, how often someone bluffs), write "(to validate)" after it and say the player can check it.
+- When you use a villain range you guessed, say which range you used.
+- Cards look like Ah Kd Ts 9c (T = ten). Ranges look like "QQ+, AKs, AQo+".
+- Fair play: if they seem to be in a live online hand right now, remind them that sites ban helper tools during a hand, and help after the hand.
+- Use **bold** only for the key number or the key advice. No headings, no tables.
+
+The player's profile (from their coach notes): ${profile}
+Current prep: ${prep}`;
+}
+const coachTools = (calls) => [
+  {
+    name: 'equity',
+    description: 'Exact (or simulated, with error margin) chance to win for 2+ players. Each player is a hand like "AhKd" or a range like "QQ+,AKs,AQo+". Optional board of 0, 3, 4 or 5 cards like "Qh7h2c". Returns equity, win and tie for each player in percent, plus how it was calculated.',
+    inputSchema: { type: 'object', properties: { players: { type: 'array', items: { type: 'string' } }, board: { type: 'string' } }, required: ['players'] },
+    async execute(input) {
+      const players = (Array.isArray(input.players) ? input.players : []).map(String);
+      const r = await engine('equity', { players, board: input.board ? String(input.board) : '' });
+      calls.push(r.mode === 'exact' ? `Engine · exact · ${fmtInt(r.boards)} deals` : `Engine · ${fmtInt(r.runs)} random deals · ± ${pct(r.margin)}`);
+      return { method: r.mode === 'exact' ? `exact, all ${r.boards} deals counted` : `simulation of ${r.runs} deals, 95% margin ±${pct(r.margin)}`, players: r.players.map((p, i) => ({ player: players[i], equity: pct(p.equity), win: pct(p.win), tie: pct(p.tie) })) };
+    },
+  },
+  {
+    name: 'outs',
+    description: 'Cards on the next street that put the hero ahead of one known villain hand. Board must be the flop (3 cards) or turn (4 cards). Returns the out cards and the exact chance to hit on the next card.',
+    inputSchema: { type: 'object', properties: { hero: { type: 'string' }, villain: { type: 'string' }, board: { type: 'string' } }, required: ['hero', 'villain', 'board'] },
+    async execute(input) {
+      const r = await engine('outs', { hero: String(input.hero), villain: String(input.villain), board: String(input.board) });
+      calls.push(`Engine · outs · ${r.outs.length}/${r.unseen}`);
+      return { heroIsBehind: r.behind, outs: r.outs, outCount: r.outs.length, splitCards: r.tieOuts, unseenCards: r.unseen, chanceNextCard: pct(r.nextCardChance) };
+    },
+  },
+  {
+    name: 'pot_odds',
+    description: 'Pot odds for a call. pot = all chips in the middle now including the bet faced; call = chips the player must add. Returns the ratio and the equity needed to call.',
+    inputSchema: { type: 'object', properties: { pot: { type: 'number' }, call: { type: 'number' } }, required: ['pot', 'call'] },
+    async execute(input) {
+      const r = runLocal('potOdds', { pot: Number(input.pot), call: Number(input.call) });
+      calls.push(`Engine · pot odds ${r.ratio.toFixed(2)} : 1`);
+      return { ratio: `${r.ratio.toFixed(2)} : 1`, equityNeeded: pct(r.equityNeeded) };
+    },
+  },
+  {
+    name: 'stack',
+    description: 'Tournament stack size: big blinds and M-ratio. ante is per player unless bb_ante is true (big blind pays one ante for the table).',
+    inputSchema: { type: 'object', properties: { stack: { type: 'number' }, sb: { type: 'number' }, bb: { type: 'number' }, ante: { type: 'number' }, players: { type: 'number' }, bb_ante: { type: 'boolean' } }, required: ['stack', 'sb', 'bb'] },
+    async execute(input) {
+      const r = runLocal('stack', { stack: input.stack, sb: input.sb, bb: input.bb, ante: input.ante ?? 0, players: input.players ?? 9, bbAnte: Boolean(input.bb_ante) });
+      calls.push(`Engine · ${r.bigBlinds.toFixed(1)} BB`);
+      return { bigBlinds: Number(r.bigBlinds.toFixed(2)), mRatio: Number(r.mRatio.toFixed(2)), orbitCost: r.orbitCost };
+    },
+  },
+];
+
+function mdLite(text) {
+  const parts = esc(text).split(/\n{2,}/);
+  return parts.map((p) => `<p>${p.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\((to validate)\)/gi, '<span class="badge validate">To validate</span>').replace(/\n/g, '<br>')}</p>`).join('');
+}
+function renderCoach() {
+  const v = $('#view-coach');
+  v.innerHTML = `
+    <div class="view-head"><h1>Ask Coach</h1>
+      <div class="row"><span class="pill">Between hands only</span>${coach.turns.length ? `<button type="button" class="btn small ghost" id="chat-new">New chat</button>` : ''}</div></div>
+    ${!sample ? `<p class="notice">Ask Coach needs Claude, which isn't available in this view. Open the app on claude.ai while signed in.</p>` : ''}
+    <div class="chat" id="chat">
+      ${coach.turns.length ? '' : `<p class="muted">Ask about a hand, a decision or a number. Your coach calculates every number with the odds engine.</p>
+        <div class="row">${SUGGESTIONS.map((s, i) => `<button type="button" class="btn small" data-sugg="${i}" style="text-align:left;height:auto;padding-block:8px">${esc(s)}</button>`).join('')}</div>`}
+      ${coach.turns.map((t) => t.role === 'user' ? `<div class="msg user">${esc(t.content)}</div>` : `<div class="msg coach">${mdLite(t.content)}${t.badges?.length ? `<div class="badges">${t.badges.map((b) => `<span class="badge">${esc(b)}</span>`).join('')}</div>` : ''}</div>`).join('')}
+      <div id="live" hidden class="msg coach"></div>
+      ${coach.error ? `<p class="error">${esc(coach.error)}</p>` : ''}
+    </div>
+    <form class="ask" id="ask-form">
+      <label for="ask-input" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Ask a question</label>
+      <textarea id="ask-input" rows="1" placeholder="Ask about a hand or a number…" ${sample ? '' : 'disabled'}>${esc(coach.draft)}</textarea>
+      ${coach.busy
+        ? `<button type="button" class="icon-btn ghost" id="stop" aria-label="Stop"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>`
+        : `<button type="submit" class="icon-btn" aria-label="Send" ${sample ? '' : 'disabled'}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg></button>`}
+    </form>`;
+  const input = $('#ask-input');
+  input.addEventListener('input', () => { coach.draft = input.value; });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#ask-form').requestSubmit(); } });
+  $('#ask-form').addEventListener('submit', (e) => { e.preventDefault(); if (!coach.busy) sendCoach(input.value); });
+  v.querySelectorAll('[data-sugg]').forEach((b) => b.addEventListener('click', () => sendCoach(SUGGESTIONS[b.dataset.sugg])));
+  const stop = $('#stop'); if (stop) stop.onclick = () => coach.ctl?.abort();
+  const nw = $('#chat-new'); if (nw) nw.onclick = () => { coach.turns = []; coach.error = ''; store.set('chat', []); renderCoach(); };
+  $('#main').scrollTop = $('#main').scrollHeight;
+}
+const COACH_ERRORS = {
+  not_granted: 'Ask Coach is turned off because Claude was not allowed for this app. You can allow it from the app’s Permissions menu.',
+  sampling_disabled: 'Claude is not available for this account.',
+  rate_limited: 'Too many questions in a short time, or your Claude usage limit is reached. Try again in a little while.',
+  session_expired: 'Please sign in to claude.ai again.',
+  refused: 'The coach could not answer that. Try asking in a different way.',
+  prompt_too_large: 'This chat is too long. Start a new chat.',
+};
+async function sendCoach(text) {
+  text = String(text ?? '').trim();
+  if (!text || !sample || coach.busy) return;
+  coach.turns.push({ role: 'user', content: text });
+  coach.draft = ''; coach.error = ''; coach.busy = true;
+  renderCoach();
+  const live = $('#live');
+  live.hidden = false; live.innerHTML = '<p class="muted">Thinking…</p>';
+  const calls = [];
+  coach.ctl = new AbortController();
+  const history = coach.turns.slice(-12).map((t) => ({ role: t.role, content: t.content }));
+  try {
+    const opts = { cache: false, signal: coach.ctl.signal, onText: ({ text: t }) => { const l = $('#live'); if (l) l.innerHTML = mdLite(t); $('#main').scrollTop = $('#main').scrollHeight; } };
+    if (toolsOk) opts.tools = coachTools(calls);
+    const res = await sample([{ role: 'user', content: coachRules() }, ...history], opts);
+    coach.turns.push({ role: 'assistant', content: res.text + (res.truncated ? '\n\n(Answer cut short. Ask for less at a time.)' : ''), badges: calls });
+  } catch (e) {
+    if (e?.text) coach.turns.push({ role: 'assistant', content: e.text + '\n\n(Interrupted.)', badges: calls });
+    if (e?.code !== 'cancelled') coach.error = COACH_ERRORS[e?.code] ?? 'Something went wrong. Try again.';
+    if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(e?.code)) sample = null;
+  }
+  coach.busy = false; coach.ctl = null;
+  store.set('chat', coach.turns.slice(-30));
+  if (route === 'coach') renderCoach();
+}
+
+// ---------- start ----------
+go(route);
+(async () => {
+  const c = window.claude;
+  if (!c?.use) { render(); return; }
+  const [dbNs, sampleNs] = await Promise.all([c.use('db').catch(() => null), c.use('sample').catch(() => null)]);
+  db = dbNs; sample = sampleNs;
+  if (sample) { try { toolsOk = Boolean((await sample.limits())?.tools); } catch { toolsOk = false; } }
+  if (db) {
+    const toList = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    db.collection('hands').orderBy('createdAt', 'desc').limit(200).onSnapshot((snap) => { data.hands = toList(snap); data.dbReady = true; if (route === 'prep' || route === 'log') render(); }, () => { data.dbReady = true; });
+    db.doc('coach/prep').onSnapshot((d) => { data.prep = d.exists ? d.data() : null; if (route === 'prep') render(); }, () => {});
+    db.doc('coach/profile').onSnapshot((d) => { data.profile = d.exists ? d.data() : null; }, () => {});
+  }
+  render();
+})();
+</script>

@@ -39,9 +39,16 @@ Goal: help them get better, step by step, using their own hands.
 - Keep everything as md files unless the player asks for something else.
 - Cards are written like `Ah Kd` (rank + suit: s h d c). Ten is `T`.
 
+## The app
+- Holdembuddy app (private): https://claude.ai/artifact/Xiuu1Ciw5kLCPeCKRiSN5G
+- Source: `app/index.html` + `app/engine/*.js` (published as `engine/*.js`). Republish with the Artifact tool, same file path.
+- Its database (hands, sessions, coach/prep, coach/profile) is described in `.claude/skills/sync/SKILL.md`.
+- Design rules: `design/design.md` (dark by default, 2-color deck, tabs Prep · Odds · Learn · Log · Coach).
+
 ## Commands (skills)
 - `/log-hand`: interview the player about a hand and save it.
 - `/review-hand`: review one hand street by street.
+- `/sync`: import hands and sessions from the app, and write prep back to it.
 - More are planned (see `README.md`).
 
 ## Code
